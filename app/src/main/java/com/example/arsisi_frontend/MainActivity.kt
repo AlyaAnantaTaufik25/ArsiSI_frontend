@@ -3,45 +3,40 @@ package com.example.arsisi_frontend
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
+import androidx.activity.enableEdgeToEdge // Pertahankan jika Anda ingin EdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.Surface // Gunakan Surface, bukan Scaffold, sebagai kontainer utama
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.compose.rememberNavController // Impor NavController
+import com.example.arsisi_frontend.navigation.NavGraph // Impor NavGraph Anda
 import com.example.arsisi_frontend.ui.theme.ArsiSI_frontendTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge() // Pertahankan jika Anda ingin efek EdgeToEdge
         setContent {
             ArsiSI_frontendTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                // Gunakan Surface sebagai kontainer utama untuk seluruh aplikasi
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    // color = MaterialTheme.colorScheme.background // Opsional: atur warna background
+                ) {
+                    // 1. Buat NavController
+                    val navController = rememberNavController()
+
+                    // 2. Panggil NavGraph Anda sebagai Composable utama
+                    NavGraph(navController = navController)
                 }
             }
         }
     }
 }
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    ArsiSI_frontendTheme {
-        Greeting("Android")
-    }
-}
+// Hapus atau abaikan fungsi Greeting dan GreetingPreview
+// Karena sudah tidak dipakai oleh aplikasi utama.
+// @Composable
+// fun Greeting(name: String, modifier: Modifier = Modifier) { ... }
+// @Preview(showBackground = true)
+// @Composable
+// fun GreetingPreview() { ... }

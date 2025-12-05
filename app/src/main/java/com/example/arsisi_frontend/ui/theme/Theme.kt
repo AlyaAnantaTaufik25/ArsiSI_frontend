@@ -11,33 +11,84 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
+// --- SCHEME DARK ---
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    // PRIMARY
+    primary = Orange500,        // Warna utama (misal, tombol, header)
+    onPrimary = Black,          // Teks di atas primary
+    primaryContainer = Orange700, // Kunci wajib M3
+    onPrimaryContainer = White, // Kunci wajib M3
+
+    // SECONDARY
+    secondary = Blue500,
+    onSecondary = White,
+    secondaryContainer = Blue600, // Kunci wajib M3
+    onSecondaryContainer = White, // Kunci wajib M3
+
+    // TERTIARY
+    tertiary = Orange700,
+    onTertiary = White,         // Kunci wajib M3
+    tertiaryContainer = Orange600, // Kunci wajib M3
+    onTertiaryContainer = White, // Kunci wajib M3
+
+    // BACKGROUND & SURFACE
+    background = Gray900,
+    onBackground = White,
+    surface = Gray800,
+    onSurface = White,
+    surfaceVariant = Gray700,   // Kunci wajib M3
+    onSurfaceVariant = Gray300, // Kunci wajib M3
+
+    // LAINNYA
+    outline = Gray500,          // Kunci wajib M3
+    error = Error,
+    onError = White,
+    errorContainer = Error,     // Kunci wajib M3
+    onErrorContainer = White    // Kunci wajib M3
 )
 
+// --- SCHEME LIGHT ---
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+    // PRIMARY
+    primary = Orange700,
+    onPrimary = White,
+    primaryContainer = Orange600, // Kunci wajib M3
+    onPrimaryContainer = White, // Kunci wajib M3
 
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    // SECONDARY
+    secondary = Blue500,
+    onSecondary = White,
+    secondaryContainer = Blue600, // Kunci wajib M3
+    onSecondaryContainer = White, // Kunci wajib M3
+
+    // TERTIARY
+    tertiary = Orange600,
+    onTertiary = White,         // Kunci wajib M3
+    tertiaryContainer = Orange500, // Kunci wajib M3
+    onTertiaryContainer = White, // Kunci wajib M3
+
+    // BACKGROUND & SURFACE
+    background = Background, // Gray50
+    onBackground = TextPrimary,
+    surface = Surface,       // White
+    onSurface = TextPrimary,
+    surfaceVariant = Gray100, // Kunci wajib M3 (Warna terang)
+    onSurfaceVariant = TextSecondary, // Kunci wajib M3
+
+    // LAINNYA
+    outline = Gray400,          // Kunci wajib M3
+    error = Error,
+    onError = White,
+    errorContainer = Error,     // Kunci wajib M3
+    onErrorContainer = White    // Kunci wajib M3
+
+    // TIDAK ADA PARAMETER LAIN DI SINI!
 )
 
 @Composable
 fun ArsiSI_frontendTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false, // Set dynamicColor ke false untuk mencegah potensi konflik
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -45,14 +96,13 @@ fun ArsiSI_frontendTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
+        typography = Typography, // Asumsikan Typography ada di Type.kt
         content = content
     )
 }
