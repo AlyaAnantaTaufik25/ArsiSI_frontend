@@ -43,6 +43,11 @@ android {
         compose = true
     }
 
+    // ✅ TAMBAH INI:
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.18"  // Sesuai Kotlin Compose plugin
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -115,5 +120,10 @@ dependencies {
 
     ksp("androidx.room:room-compiler:2.8.4")
 
+    // ✅ TAMBAH INI (hilangkan semua error):
+    implementation("androidx.compose.runtime:runtime-livedata:1.7.4")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
 
+    implementation("androidx.activity:activity-compose:1.9.2")  // ↑ 1.8.2 → 1.9.2
+    implementation(platform("androidx.compose:compose-bom:2024.12.01"))  // ↑ Terbaru!
 }

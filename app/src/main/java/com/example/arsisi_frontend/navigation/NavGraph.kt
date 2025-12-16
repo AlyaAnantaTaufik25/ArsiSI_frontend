@@ -16,12 +16,16 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 
+import androidx.compose.runtime.LaunchedEffect
+import android.util.Log
+
+
 import com.example.arsisi_frontend.ui.auth.AuthViewModel
 import com.example.arsisi_frontend.ui.auth.AuthViewModelFactory
 import com.example.arsisi_frontend.ui.auth.LoginScreen
 import com.example.arsisi_frontend.ui.auth.RegisterScreen
 import com.example.arsisi_frontend.ui.dashboard.DashboardScreen
-import com.example.arsisi_frontend.ui.splash.NavigationRoute // Import NavigationRoute yang benar
+import com.example.arsisi_frontend.ui.splash.NavigationRoute
 import com.example.arsisi_frontend.ui.splash.SplashScreen
 import com.example.arsisi_frontend.ui.splash.SplashViewModel
 
@@ -30,36 +34,22 @@ fun NavGraph(
     navController: NavHostController,
 ) {
     val context = LocalContext.current
-
-    // Inisialisasi Factory (pastikan context dapat di-cast ke Application)
     val authViewModelFactory = remember {
         AuthViewModelFactory(context.applicationContext as Application)
     }
 
-    // Inisialisasi SplashViewModel
+    // ✅ FIX #1: SHARED AUTH VIEWMODEL - SATU INSTANCE UNTUK SEMUA SCREEN
+    val sharedAuthViewModel: AuthViewModel = viewModel(factory = authViewModelFactory)
+
     val splashViewModel: SplashViewModel = viewModel()
     val routeState by splashViewModel.nextRoute.collectAsState()
-
-    // Penentuan rute awal NavHost
-    val initialRoute = when (val state = routeState) {
-        is NavigationRoute.Loading -> Screen.Splash.route
-        is NavigationRoute.Navigate -> state.route
-    }
-
-    // Tampilkan Loading UI/Box kosong saat state masih Loading
-    if (routeState is NavigationRoute.Loading) {
-        // Tampilkan Box kosong dengan warna latar belakang tema agar transisi lebih mulus
-        Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
-        return
-    }
+    val initialRoute = Screen.Splash.route
 
     NavHost(
         navController = navController,
         startDestination = initialRoute
-        // CATATAN PENTING: enterTransition dan exitTransition dihilangkan SEMENTARA
-        // untuk mengatasi crash LayoutNode saat navigasi dari Pager (SplashScreen).
     ) {
-        // ==================== 1. SPLASH SCREEN ====================
+        // ============= SPLASH SCREEN =============
         composable(Screen.Splash.route) {
             val isFirstTime by splashViewModel.isFirstTimeState.collectAsState()
             val userName by splashViewModel.userNameState.collectAsState()
@@ -67,14 +57,12 @@ fun NavGraph(
             SplashScreen(
                 isFirstTime = isFirstTime,
                 userName = userName,
-                // Navigasi setelah Onboarding selesai
                 onNavigateToLogin = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Splash.route) { inclusive = true }
                     }
                 },
                 onNavigateToRegister = {
-                    // Navigasi yang diinginkan: Splash -> Register
                     navController.navigate(Screen.Register.route) {
                         popUpTo(Screen.Splash.route) { inclusive = true }
                     }
@@ -87,9 +75,19 @@ fun NavGraph(
             )
         }
 
-        // ==================== 2. LOGIN SCREEN ====================
+        // ============= LOGIN SCREEN =============
+// ============= LOGIN SCREEN =============
         composable(Screen.Login.route) {
-            val authViewModel: AuthViewModel = viewModel(factory = authViewModelFactory)
+            // 🔥 FIX: AUTO-REDIRECT BACKUP di NavGraph level
+            val authState by sharedAuthViewModel.authState.collectAsState()
+            LaunchedEffect(authState.isSuccess) {
+                if (authState.isSuccess && authState.user != null) {
+                    Log.d("NavGraph", "💥 AUTO DASHBOARD FROM NAVGRAPH!")
+                    navController.navigate(Screen.Dashboard.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                }
+            }
 
             LoginScreen(
                 onNavigateToRegister = { navController.navigate(Screen.Register.route) },
@@ -98,53 +96,60 @@ fun NavGraph(
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
-                viewModel = authViewModel
+                viewModel = sharedAuthViewModel
             )
         }
 
-        // ==================== 3. REGISTER SCREEN ====================
+
+        // ============= REGISTER SCREEN =============
         composable(Screen.Register.route) {
-            val authViewModel: AuthViewModel = viewModel(factory = authViewModelFactory)
+            // ❌ HAPUS: val authViewModel: AuthViewModel = viewModel(factory = authViewModelFactory)
 
             RegisterScreen(
-                onNavigateToLogin = { navController.popBackStack() },
+                onNavigateToLogin = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Register.route) { inclusive = true }
+                    }
+                },
                 onNavigateToDashboard = {
                     navController.navigate(Screen.Dashboard.route) {
                         popUpTo(Screen.Register.route) { inclusive = true }
                     }
                 },
-                viewModel = authViewModel
+                viewModel = sharedAuthViewModel  // ✅ SHARED INSTANCE
             )
         }
 
-        // ==================== 4. DASHBOARD SCREEN ====================
+        // ============= DASHBOARD SCREEN =============
         composable(Screen.Dashboard.route) {
-            val authViewModel: AuthViewModel = viewModel(factory = authViewModelFactory)
-            val userName = authViewModel.authState.collectAsState().value.user?.nama ?: "Pengguna"
+            // ❌ HAPUS: val authViewModel: AuthViewModel = viewModel(factory = authViewModelFactory)
+            val authState by sharedAuthViewModel.authState.collectAsState()  // ✅ SHARED STATE
+            val userName = authState.user?.nama ?: "Pengguna"
 
             DashboardScreen(
                 userName = userName,
+                authViewModel = sharedAuthViewModel,  // ✅ SHARED INSTANCE
                 onNavigateToLogin = {
+                    sharedAuthViewModel.logout()  // ✅ SHARED LOGOUT
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Dashboard.route) { inclusive = true }
                     }
                 },
-                // Navigasi ke sub-fitur
                 onNavigateToMataKuliah = { navController.navigate(Screen.MataKuliahList.route) },
                 onNavigateToAgenda = { navController.navigate(Screen.AgendaList.route) },
                 onNavigateToPrestasi = { navController.navigate(Screen.PrestasiList.route) },
                 onNavigateToAkademik = { navController.navigate(Screen.DokumenAkademikList.route) },
                 onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
-                onNavigateToSearch = { navController.navigate(Screen.Search.route) },
+                onNavigateToSearch = { navController.navigate(Screen.Search.route) }
             )
         }
 
-        // ==================== 5. DEFINISI SEMUA RUTE DETAIL ====================
-        composable(Screen.MataKuliahList.route) { /* MataKuliahListScreen() */ }
-        composable(Screen.AgendaList.route) { /* AgendaListScreen() */ }
-        composable(Screen.PrestasiList.route) { /* PrestasiListScreen() */ }
-        composable(Screen.DokumenAkademikList.route) { /* DokumenAkademikListScreen() */ }
-        composable(Screen.Profile.route) { /* ProfileScreen() */ }
-        composable(Screen.Search.route) { /* SearchScreen() */ }
+        // RUTE LAINNYA (SAMA)
+        composable(Screen.MataKuliahList.route) { /* TODO */ }
+        composable(Screen.AgendaList.route) { /* TODO */ }
+        composable(Screen.PrestasiList.route) { /* TODO */ }
+        composable(Screen.DokumenAkademikList.route) { /* TODO */ }
+        composable(Screen.Profile.route) { /* TODO */ }
+        composable(Screen.Search.route) { /* TODO */ }
     }
 }

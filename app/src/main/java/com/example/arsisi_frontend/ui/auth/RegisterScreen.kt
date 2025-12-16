@@ -49,7 +49,7 @@ fun RegisterScreen(
 
     // Hardcode Jurusan karena tidak ada input untuk Jurusan di form ini.
     // Jika perlu input, ganti ini dengan state yang bisa diubah (misalnya Dropdown/TextField).
-    val jurusanHardcoded = "Sistem Informasi"
+//    val jurusanHardcoded = "Sistem Informasi"
 
     // Handle auth state (Navigasi dan Error)
     LaunchedEffect(authState) {
@@ -231,7 +231,7 @@ fun RegisterScreen(
                     }
                     else -> {
                         // Panggil fungsi register di ViewModel
-                        viewModel.register(nim, nama, email, angkatan, password, jurusanHardcoded)
+                        viewModel.register(nim, nama, email, angkatan, password)
                         showError = false // Hilangkan error saat registrasi diproses
                     }
                 }

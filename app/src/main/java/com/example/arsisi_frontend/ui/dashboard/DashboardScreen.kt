@@ -1,8 +1,7 @@
-// Lokasi: com/example/arsisi_frontend/ui/dashboard/DashboardScreen.kt
-
 package com.example.arsisi_frontend.ui.dashboard
 
 import android.app.Application
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -18,7 +17,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Color.Companion.Blue // Digunakan di MenuCard
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -27,16 +25,15 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.arsisi_frontend.ui.auth.AuthViewModel
 import com.example.arsisi_frontend.ui.auth.AuthViewModelFactory
-import com.example.arsisi_frontend.ui.theme.* // Import semua warna (Orange100, Blue500, dll.)
-
-// =========================================================================
-// 1. FUNGSI UTAMA DASHBOARD SCREEN
-// =========================================================================
+import com.example.arsisi_frontend.ui.theme.*
+import kotlinx.coroutines.launch
+import androidx.compose.ui.text.style.TextAlign
 
 @Composable
 fun DashboardScreen(
     userName: String,
-    onNavigateToLogin: () -> Unit, // Untuk Logout
+    authViewModel: AuthViewModel,
+    onNavigateToLogin: () -> Unit,
     onNavigateToMataKuliah: () -> Unit,
     onNavigateToAgenda: () -> Unit,
     onNavigateToPrestasi: () -> Unit,
@@ -44,26 +41,92 @@ fun DashboardScreen(
     onNavigateToProfile: () -> Unit,
     onNavigateToSearch: () -> Unit,
 ) {
-    // Inisialisasi AuthViewModel (untuk Logout)
-    val context = LocalContext.current
-    val authViewModelFactory = remember {
-        AuthViewModelFactory(context.applicationContext as Application)
-    }
-    val authViewModel: AuthViewModel = viewModel(factory = authViewModelFactory)
+    val authViewModel: AuthViewModel = viewModel()
     val authState by authViewModel.authState.collectAsState()
 
-    // Inisialisasi DashboardViewModel (Mengatasi error 'stats' & 'viewModel')
-    // Asumsi Anda telah membuat file DashboardViewModel.kt
     val dashboardViewModel: DashboardViewModel = viewModel()
     val stats by dashboardViewModel.stats.collectAsState()
+    val isLoading by dashboardViewModel.isLoading.collectAsState()
+    val error by dashboardViewModel.error.collectAsState()
 
-    // Logika Navigasi Logout
+
+    // ✅ LOAD DATA SEKALI SAJA
+    LaunchedEffect(dashboardViewModel) {
+        Log.d("DashboardScreen", "🔄 Initial load dashboard data")
+        dashboardViewModel.loadDashboardData()
+    }
+
+    // Logout navigation
     LaunchedEffect(authState.user) {
         if (authState.user == null && !authState.isLoading && !authState.isSuccess) {
+            Log.d("DashboardScreen", "🚪 Auto logout")
             onNavigateToLogin()
         }
     }
 
+    // ✅ LOADING SCREEN
+    if (isLoading) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Orange500),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                CircularProgressIndicator(color = White, strokeWidth = 3.dp)
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "Loading dashboard...",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = White,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+        return
+    }
+
+    // ✅ ERROR SCREEN - FULLY FIXED
+    if (error != null) {
+        val errorMessage = error  // ✅ FIX #1: LOCAL COPY (smart cast)
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Orange500),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Error,
+                contentDescription = "Error",
+                tint = White,
+                modifier = Modifier.size(64.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = error ?: "Terjadi kesalahan tidak diketahui",
+                style = MaterialTheme.typography.titleMedium,
+                color = White,
+                textAlign = TextAlign.Center  // ✅ FIX #3: IMPORT SHORT
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = { dashboardViewModel.loadDashboardData() },
+                colors = ButtonDefaults.buttonColors(containerColor = White),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Coba Lagi", color = Orange500, fontWeight = FontWeight.Bold)
+            }
+        }
+        return
+    }
+
+
+    // ✅ MAIN UI - STABIL!
     Scaffold(
         topBar = {
             DashboardTopBar(
@@ -117,19 +180,19 @@ fun DashboardScreen(
                     StatCard(
                         modifier = Modifier.weight(1f),
                         value = stats.totalMataKuliah.toString(),
-                        label = "Dokumen",
+                        label = "Mata Kuliah",
                         icon = Icons.Default.Description
                     )
                     StatCard(
                         modifier = Modifier.weight(1f),
                         value = stats.totalDokumen.toString(),
-                        label = "Tugas",
+                        label = "Dokumen",
                         icon = Icons.Default.MenuBook
                     )
                     StatCard(
                         modifier = Modifier.weight(1f),
                         value = stats.totalPrestasi.toString(),
-                        label = "Sertifikat",
+                        label = "Prestasi",
                         icon = Icons.Default.EmojiEvents
                     )
                 }
@@ -156,7 +219,7 @@ fun DashboardScreen(
                         title = "Dokumen Akademik",
                         subtitle = "Kelola dokumen akademik kamu dengan mudah",
                         icon = Icons.Default.Folder,
-                        backgroundColor = Orange100, // Ambil dari ui.theme
+                        backgroundColor = Orange100,
                         iconColor = Orange500,
                         onClick = onNavigateToAkademik
                     )
@@ -166,8 +229,8 @@ fun DashboardScreen(
                         title = "Mata Kuliah",
                         subtitle = "Pengelolaan tugas & jadwal",
                         icon = Icons.Default.Book,
-                        backgroundColor = Blue.copy(alpha = 0.1f),
-                        iconColor = Blue500,
+                        backgroundColor = Color.Blue.copy(alpha = 0.1f),
+                        iconColor = Orange500,
                         onClick = onNavigateToMataKuliah
                     )
                 }
@@ -206,16 +269,16 @@ fun DashboardScreen(
 }
 
 // =========================================================================
-// 2. KOMPONEN PENDUKUNG (Memperbaiki Unresolved Reference)
+// KOMPONEN PENDUKUNG - SAMA PERSIS
 // =========================================================================
 
 @Composable
 fun DashboardTopBar(
     userName: String,
-    onNavigateToProfile: () -> Unit,
-    onNavigateToSearch: () -> Unit,
     onLogout: () -> Unit,
-    isLogoutLoading: Boolean
+    isLogoutLoading: Boolean,
+    onNavigateToProfile: () -> Unit,
+    onNavigateToSearch: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -243,7 +306,6 @@ fun DashboardTopBar(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Tombol Logout
             IconButton(
                 onClick = onLogout,
                 enabled = !isLogoutLoading,
@@ -262,7 +324,6 @@ fun DashboardTopBar(
                 }
             }
 
-            // Tombol Search
             IconButton(
                 onClick = onNavigateToSearch,
                 modifier = Modifier
@@ -276,7 +337,6 @@ fun DashboardTopBar(
                 )
             }
 
-            // Tombol Profile
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -304,14 +364,11 @@ fun StatCard(
 ) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = White
-        ),
+        colors = CardDefaults.cardColors(containerColor = White),
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(
-            modifier = Modifier
-                .padding(12.dp),
+            modifier = Modifier.padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
@@ -351,9 +408,7 @@ fun MenuCard(
         modifier = modifier
             .height(160.dp)
             .clickable { onClick() },
-        colors = CardDefaults.cardColors(
-            containerColor = White
-        ),
+        colors = CardDefaults.cardColors(containerColor = White),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {

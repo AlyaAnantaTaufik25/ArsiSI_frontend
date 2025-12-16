@@ -34,8 +34,7 @@ data class RegisterRequest(
     val nama: String,
     val email: String,
     val password: String,
-    val angkatan: String,
-    val jurusan: String
+    val angkatan: String
 )
 
 data class AuthResponse(
@@ -50,8 +49,7 @@ data class UserData(
     val nim: String,
     val nama: String,
     val email: String,
-    val angkatan: String,
-    val jurusan: String
+    val angkatan: String
 )
 
 // ==================== USER ENTITY ====================
@@ -65,7 +63,6 @@ data class User(
     val nama: String,
     val email: String,
     val angkatan: String,
-    val jurusan: String,
     val token: String? = null
 ) : Parcelable
 

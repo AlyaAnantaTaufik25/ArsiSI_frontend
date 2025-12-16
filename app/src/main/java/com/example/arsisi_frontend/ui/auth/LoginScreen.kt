@@ -1,11 +1,14 @@
 package com.example.arsisi_frontend.ui.auth
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -22,40 +25,44 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.arsisi_frontend.R
-import com.example.arsisi_frontend.ui.theme.* import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import com.example.arsisi_frontend.ui.theme.*
 
 @Composable
 fun LoginScreen(
     onNavigateToRegister: () -> Unit,
     onNavigateToDashboard: () -> Unit,
-    viewModel: AuthViewModel = viewModel()
+    viewModel: AuthViewModel
 ) {
+    // ================== STATE INPUT ==================
     var nim by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
 
-    // SINKRONISASI: Menggunakan 'authState' yang diekspos oleh ViewModel
+    // ================== STATE AUTH ==================
     val authState by viewModel.authState.collectAsState()
-
     var showError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
 
-    // Handle login state changes
+    // ================== NAVIGATION - FIXED ✅ ==================
     LaunchedEffect(authState) {
-        if (authState.isSuccess) {
+        Log.d("LoginScreen", "🔍 STATE: success=${authState.isSuccess}, error=${authState.error}")
+
+        // SUCCESS
+        if (authState.isSuccess && authState.user != null) {
+            Log.d("LoginScreen", "🎯 NAV DASHBOARD!")
             onNavigateToDashboard()
-            viewModel.resetState()
         }
+
+        // ERROR
         if (authState.error != null) {
-            errorMessage = authState.error ?: "Login gagal. Cek kembali kredensial Anda."
+            errorMessage = authState.error!!
             showError = true
-            viewModel.resetState() // Reset error state di ViewModel
+            viewModel.resetState()
         }
     }
 
+    // ================== UI ==================
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -66,10 +73,6 @@ fun LoginScreen(
     ) {
         Spacer(modifier = Modifier.height(64.dp))
 
-        // Logo (Asumsi R.drawable.logo_arsisi tersedia)
-        // Gunakan Image jika Anda punya ID drawable, atau Box/Text sebagai placeholder
-        // Jika R.drawable.logo_arsisi error, ganti dengan:
-        // Text(text = "LOGO", style = MaterialTheme.typography.headlineLarge)
         Image(
             painter = painterResource(id = R.drawable.logo_arsisi),
             contentDescription = "Logo ArsiSI",
@@ -78,7 +81,6 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        // Judul "Masuk"
         Text(
             text = "Masuk",
             style = MaterialTheme.typography.headlineMedium,
@@ -90,15 +92,15 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Input NIM
+        // ====== NIM ======
         OutlinedTextField(
             value = nim,
             onValueChange = {
                 nim = it
-                showError = false // Reset error saat mengetik
+                if (showError) showError = false
             },
             label = { Text("NIM") },
-            // ... (Style dan Warna) ...
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
@@ -111,16 +113,24 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Input Password
+        // ====== PASSWORD ======
         OutlinedTextField(
             value = password,
             onValueChange = {
                 password = it
-                showError = false // Reset error saat mengetik
+                if (showError) showError = false
             },
             label = { Text("Password") },
             visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-            // ... (Trailing Icon) ...
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            trailingIcon = {
+                IconButton(onClick = { showPassword = !showPassword }) {
+                    Icon(
+                        imageVector = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        contentDescription = "Toggle password visibility"
+                    )
+                }
+            },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
@@ -131,48 +141,33 @@ fun LoginScreen(
             )
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Checkbox "show password"
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Checkbox(
-                checked = showPassword,
-                onCheckedChange = { showPassword = it },
-                colors = CheckboxDefaults.colors(checkedColor = Orange500)
-            )
-            Text(
-                text = "show password",
-                style = MaterialTheme.typography.bodySmall,
-                color = Gray600 // Menggunakan Gray600 sesuai desain
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Error Message Tampilan
+        // ====== ERROR MESSAGE ======
         if (showError) {
             Text(
                 text = errorMessage,
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp)) // Jarak disesuaikan
+        Spacer(modifier = Modifier.height(24.dp))
 
-        // Tombol "Masuk"
+        // ====== BUTTON MASUK ======
         Button(
             onClick = {
+                Log.d("LoginScreen", "🔘 LOGIN BUTTON: nim='${nim}', password='${password.length} chars'")
+
                 if (nim.isBlank() || password.isBlank()) {
-                    errorMessage = "NIM dan Password harus diisi."
+                    errorMessage = "NIM dan Password harus diisi"
                     showError = true
                 } else {
-                    viewModel.login(nim, password)
                     showError = false
+                    viewModel.login(nim.trim(), password.trim())
                 }
             },
             modifier = Modifier
@@ -180,26 +175,50 @@ fun LoginScreen(
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Orange500),
             shape = RoundedCornerShape(28.dp),
-            // SINKRONISASI: Akses authState.isLoading
             enabled = !authState.isLoading
         ) {
-            // SINKRONISASI: Akses authState.isLoading
             if (authState.isLoading) {
-                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                CircularProgressIndicator(
+                    color = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
             } else {
-                Text(text = "Masuk", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    text = "Masuk",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        // Teks "Belum punya akun? Daftar"
+
+
+        // ====== BUTTON TEST ======
+        Spacer(modifier = Modifier.height(16.dp))
+        OutlinedButton(
+            onClick = {
+                Log.d("LoginScreen", "🧪 MANUAL NAV TEST")
+                onNavigateToDashboard()
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("🧪 TEST: Go Dashboard")
+        }
+
+
+        // ====== LINK DAFTAR ======
         Row(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(text = "Belum punya akun? ", style = MaterialTheme.typography.bodyMedium, color = Gray600)
+            Text(
+                text = "Belum punya akun? ",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Gray600
+            )
             Text(
                 text = "Daftar",
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
@@ -208,10 +227,8 @@ fun LoginScreen(
             )
         }
 
-        // Spacer untuk mendorong footer ke bawah
         Spacer(modifier = Modifier.weight(1f))
 
-        // Footer "Privacy Policy & Terms of Services"
         Text(
             text = "by logging in, you agree to the\nPrivacy Policy & Terms of Services",
             style = MaterialTheme.typography.bodySmall,

@@ -11,6 +11,7 @@ composeBom = "2024.09.00"
 room = "2.6.1"
 foundation = "1.9.4"
 ksp = "2.1.21-2.0.1"
+kotlin-compose = "1.5.18"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -33,6 +34,7 @@ androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = 
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 androidx-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
 
+kotlin-compose-compiler = { module = "org.jetbrains.kotlin:compose-compiler", version.ref = "kotlin-compose" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

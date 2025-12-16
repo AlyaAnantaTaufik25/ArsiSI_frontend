@@ -55,7 +55,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             nama = userData.nama,
                             email = userData.email,
                             angkatan = userData.angkatan,
-                            jurusan = userData.jurusan,
                             token = authResponse.token ?: ""  // Token dari AuthResponse
                         )
 
@@ -93,15 +92,20 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     fun register(
         nim: String, nama: String, email: String, angkatan: String,
-        jurusan: String, password: String
+        password: String
     ) {
         viewModelScope.launch {
             try {
                 _authState.value = AuthState(isLoading = true)
 
+                Log.d(
+                    "AuthViewModel",
+                    "REGISTER CALL: nim=$nim, nama=$nama, email=$email, angkatan=$angkatan, password=$password"
+                )
+
                 val request = RegisterRequest(
                     nim = nim, nama = nama, email = email,
-                    angkatan = angkatan, jurusan = jurusan, password = password
+                    angkatan = angkatan,  password = password
                 )
                 val response = apiService.register(request)
 
