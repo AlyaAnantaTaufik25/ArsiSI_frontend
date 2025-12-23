@@ -166,6 +166,7 @@ data class PrestasiRequest(
     val tahun: Int,
     val penyelenggara: String,
     val deskripsi: String,
+    val tanggal: String,
     val filePath: String? = null
 )
 
@@ -176,6 +177,8 @@ data class PrestasiResponse(
     val data: List<Prestasi>? = null
 
 )
+
+
 
 // ==================== DOKUMEN AKADEMIK MODELS ====================
 
@@ -223,9 +226,6 @@ data class DashboardStats(
 )
 
 
-
-
-
 // ============ ARSIP MODELS ============
 
 @Entity(tableName = "arsip")
@@ -258,9 +258,6 @@ data class Arsip(
 
 // Request untuk create/update arsip
 data class ArsipRequest(
-    @SerializedName("mahasiswa_id")
-    val mahasiswaId: Int,
-
     @SerializedName("kategori")
     val kategori: String,
 
@@ -271,10 +268,7 @@ data class ArsipRequest(
     val deskripsi: String,
 
     @SerializedName("tanggal")
-    val tanggal: String,
-
-    @SerializedName("file_path")
-    val filePath: String? = null
+    val tanggal: String
 )
 
 // Response untuk list arsip
@@ -309,10 +303,6 @@ data class BaseResponse(
     @SerializedName("message")
     val message: String
 )
-
-// ============ AUTH MODELS ============
-
-
 
 
 

@@ -1,12 +1,10 @@
 package com.example.arsisi_frontend.ui.prestasi
 
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,14 +12,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.arsisi_frontend.data.model.*
+import com.example.arsisi_frontend.data.model.ArsipStatistik
+import com.example.arsisi_frontend.data.model.KategoriArsip
+import com.example.arsisi_frontend.data.model.Prestasi
+import com.example.arsisi_frontend.data.model.UiState
 import com.example.arsisi_frontend.ui.theme.*
-import com.example.arsisi_frontend.utils.DateUtils
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,80 +31,61 @@ fun PrestasiListScreen(
     onNavigateBack: () -> Unit,
     viewModel: PrestasiViewModel = viewModel()
 ) {
-    val arsipListState by viewModel.prestasiListState.collectAsState()
+    val prestasiListState by viewModel.prestasiListState.collectAsState()
     val statistikState by viewModel.statistikState.collectAsState()
     val selectedKategori by viewModel.selectedKategori.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
 
-    var showSearchBar by remember { mutableStateOf(false) }
-    var searchText by remember { mutableStateOf("") }
+    // SAFE FILTER - LOCAL VAR
+    val currentPrestasiList = if (prestasiListState is UiState.Success<*>) {
+        (prestasiListState as UiState.Success<List<Prestasi>>).data ?: emptyList()
+    } else emptyList()
+
+    val filteredList = currentPrestasiList.filter { item ->
+        val matchKategori = when (selectedKategori) {
+            KategoriArsip.SEMUA -> true
+            KategoriArsip.PRESTASI -> item.jenis.equals("PRESTASI", true)
+            KategoriArsip.SERTIFIKAT -> item.jenis.equals("SERTIFIKAT", true)
+            KategoriArsip.ORGANISASI -> item.jenis.equals("ORGANISASI", true)
+        }
+        val matchQuery = item.nama.contains(searchQuery, ignoreCase = true)
+        matchKategori && matchQuery
+    }
+
+    // SAFE STATISTIK - LOCAL VAR
+    val statistikData = if (statistikState is UiState.Success<*>) {
+        (statistikState as UiState.Success<ArsipStatistik>).data
+    } else null
+
+    LaunchedEffect(Unit) {
+        viewModel.loadPrestasiList()
+        viewModel.loadStatistik()
+    }
 
     Scaffold(
         topBar = {
-            if (showSearchBar) {
-                SearchTopBar(
-                    query = searchText,
-                    onQueryChange = {
-                        searchText = it
-                        viewModel.searchPrestasi(it)
-                    },
-                    onClose = {
-                        showSearchBar = false
-                        searchText = ""
-                        viewModel.searchPrestasi("")
+            TopAppBar(
+                title = { Text("Arsip Prestasi", color = Color.White, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, "Kembali", tint = Color.White)
                     }
-                )
-            } else {
-                TopAppBar(
-                    title = {
-                        Column {
-                            Text(
-                                text = "ARSIP KEGIATAN",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = TextWhite
-                            )
-                            Text(
-                                text = "Pusat Arsip Seluruh Aktivitas Mahasiswa",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextWhite.copy(alpha = 0.9f)
-                            )
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onNavigateBack) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "Back",
-                                tint = TextWhite
-                            )
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { showSearchBar = true }) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = "Search",
-                                tint = TextWhite
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Orange600
-                    )
-                )
-            }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Orange600),
+                actions = {
+                    IconButton(onClick = onNavigateToForm) {
+                        Icon(Icons.Default.Add, "Tambah", tint = Color.White)
+                    }
+                }
+            )
         },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onNavigateToForm,
                 containerColor = Orange600,
-                contentColor = TextWhite
+                contentColor = Color.White
             ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add Arsip"
-                )
+                Icon(Icons.Default.Add, "Tambah Prestasi")
             }
         }
     ) { paddingValues ->
@@ -114,47 +95,67 @@ fun PrestasiListScreen(
                 .padding(paddingValues)
                 .background(BackgroundLight)
         ) {
-            // Statistik Card
-            StatistikCard(
-                statistikState = statistikState,
-                modifier = Modifier.padding(16.dp)
+            // SEARCH BAR
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { viewModel.setSearchQuery(it) },
+                placeholder = { Text("Cari prestasi...") },
+                leadingIcon = { Icon(Icons.Default.Search, null) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(24.dp),
+                singleLine = true
             )
 
-            // Category Filter
-            CategoryFilter(
-                selectedKategori = selectedKategori,
-                onKategoriSelected = { viewModel.filterByKategori(it) },
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Arsip List
-            when (arsipListState) {
-                is UiState.Loading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = Orange600)
-                    }
+            // KATEGORI BUTTONS - VERTICAL (NO horizontalScroll)
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                KategoriButton("Semua", Icons.Default.Menu, selectedKategori == KategoriArsip.SEMUA) {
+                    viewModel.setKategori(KategoriArsip.SEMUA)
                 }
+                KategoriButton("Prestasi", Icons.Default.EmojiEvents, selectedKategori == KategoriArsip.PRESTASI) {
+                    viewModel.setKategori(KategoriArsip.PRESTASI)
+                }
+                KategoriButton("Sertifikat", Icons.Default.Badge, selectedKategori == KategoriArsip.SERTIFIKAT) {
+                    viewModel.setKategori(KategoriArsip.SERTIFIKAT)
+                }
+                KategoriButton("Organisasi", Icons.Default.Groups, selectedKategori == KategoriArsip.ORGANISASI) {
+                    viewModel.setKategori(KategoriArsip.ORGANISASI)
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // STATISTIK - SAFE ACCESS
+            statistikData?.let { data ->
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    StatistikCard("Total Arsip", data.totalArsip.toString())
+                    StatistikCard("Prestasi", data.totalPrestasi.toString())
+                    StatistikCard("Sertifikat", data.totalSertifikat.toString())
+                    StatistikCard("Organisasi", data.totalOrganisasi.toString())
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // MAIN CONTENT
+            when (prestasiListState) {
+                is UiState.Loading -> LoadingState()
+                is UiState.Error -> ErrorState(
+                    message = (prestasiListState as UiState.Error).message
+                ) { viewModel.loadPrestasiList() }
                 is UiState.Success -> {
-                    val arsipList = (arsipListState as UiState.Success<List<Arsip>>).data
-                    if (arsipList.isEmpty()) {
-                        EmptyStateView()
+                    if (filteredList.isEmpty()) {
+                        EmptyState()
                     } else {
-                        ArsipList(
-                            arsipList = arsipList,
-                            onArsipClick = onNavigateToDetail
-                        )
+                        PrestasiListContent(filteredList, onNavigateToDetail)
                     }
-                }
-                is UiState.Error -> {
-                    ErrorStateView(
-                        message = (arsipListState as UiState.Error).message,
-                        onRetry = { viewModel.loadPrestasiList() }
-                    )
                 }
                 else -> {}
             }
@@ -162,365 +163,207 @@ fun PrestasiListScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SearchTopBar(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    onClose: () -> Unit
-) {
-    TopAppBar(
-        title = {
-            TextField(
-                value = query,
-                onValueChange = onQueryChange,
-                placeholder = { Text("Cari Arsip...", color = TextSecondary) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedTextColor = TextWhite,
-                    unfocusedTextColor = TextWhite
-                )
-            )
-        },
-        navigationIcon = {
-            IconButton(onClick = onClose) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Close Search",
-                    tint = TextWhite
-                )
-            }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Orange600
-        )
-    )
-}
-
-@Composable
-fun StatistikCard(
-    statistikState: UiState<ArsipStatistik>,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Orange600
-        )
-    ) {
-        when (statistikState) {
-            is UiState.Success -> {
-                val stats = statistikState.data
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    horizontalArrangement = Arrangement.SpaceAround
-                ) {
-                    StatistikItem(
-                        value = stats.totalArsip.toString(),
-                        label = "Total Arsip"
-                    )
-                    StatistikItem(
-                        value = stats.totalPrestasi.toString(),
-                        label = "Prestasi"
-                    )
-                    StatistikItem(
-                        value = stats.totalSertifikat.toString(),
-                        label = "Sertifikat"
-                    )
-                    StatistikItem(
-                        value = stats.totalOrganisasi.toString(),
-                        label = "Organisasi"
-                    )
-                }
-            }
-            else -> {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    horizontalArrangement = Arrangement.SpaceAround
-                ) {
-                    repeat(4) {
-                        StatistikItem(value = "0", label = "Loading...")
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun StatistikItem(
-    value: String,
-    label: String
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
-            color = TextWhite
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = TextWhite.copy(alpha = 0.9f)
-        )
-    }
-}
-
-@Composable
-fun CategoryFilter(
-    selectedKategori: KategoriArsip,
-    onKategoriSelected: (KategoriArsip) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Text(
-        text = "Telusuri Kategori",
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.SemiBold,
-        modifier = modifier
-    )
-
-    Spacer(modifier = Modifier.height(12.dp))
-
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly
-    ) {
-        KategoriArsip.values().forEach { kategori ->
-            CategoryButton(
-                kategori = kategori,
-                isSelected = selectedKategori == kategori,
-                onClick = { onKategoriSelected(kategori) }
-            )
-        }
-    }
-}
-
-@Composable
-fun CategoryButton(
-    kategori: KategoriArsip,
+private fun KategoriButton(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(onClick = onClick)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(64.dp)
-                .clip(CircleShape)
-                .background(
-                    if (isSelected) Orange600 else Grey200
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = when (kategori) {
-                    KategoriArsip.SEMUA -> Icons.Default.List
-                    KategoriArsip.PRESTASI -> Icons.Default.Star
-                    KategoriArsip.SERTIFIKAT -> Icons.Default.Description
-                    KategoriArsip.ORGANISASI -> Icons.Default.Groups
-                },
-                contentDescription = kategori.displayName,
-                tint = if (isSelected) TextWhite else TextSecondary,
-                modifier = Modifier.size(32.dp)
-            )
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = kategori.displayName,
-            style = MaterialTheme.typography.bodySmall,
-            color = if (isSelected) Orange600 else TextSecondary
-        )
-    }
-}
-
-@Composable
-fun ArsipList(
-    arsipList: List<Arsip>,
-    onArsipClick: (Int) -> Unit
-) {
-    Text(
-        text = "Arsip Terbaru",
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-    )
-
-    LazyColumn(
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        items(arsipList, key = { it.arsipId }) { arsip ->
-            ArsipItem(arsip = arsip, onClick = { onArsipClick(arsip.arsipId) })
-        }
-    }
-}
-
-@Composable
-fun ArsipItem(
-    arsip: Arsip,
     onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
+            .clickable { onClick() }
+            .padding(vertical = 2.dp),
         colors = CardDefaults.cardColors(
-            containerColor = SurfaceWhite
+            containerColor = if (isSelected) Orange600 else SurfaceWhite
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isSelected) 4.dp else 0.dp
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (isSelected) Color.White else Orange600,
+                modifier = Modifier.size(20.dp)
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (isSelected) Color.White else TextPrimary
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatistikCard(title: String, value: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Orange600)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.White
+            )
+        }
+    }
+}
+
+@Composable
+private fun PrestasiListContent(
+    prestasiList: List<Prestasi>,
+    onPrestasiClick: (Int) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text(
+                text = "Daftar Prestasi (${prestasiList.size})",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = TextPrimary
+            )
+        }
+        items(prestasiList, key = { it.id }) { prestasi ->
+            PrestasiItem(prestasi) { onPrestasiClick(prestasi.id) }
+        }
+    }
+}
+
+@Composable
+private fun PrestasiItem(
+    prestasi: Prestasi,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon berdasarkan kategori
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
+                    .size(56.dp)
                     .background(
-                        when (arsip.kategori) {
-                            "PRESTASI" -> PrestasiColor.copy(alpha = 0.2f)
-                            "SERTIFIKAT" -> SertifikatColor.copy(alpha = 0.2f)
-                            "ORGANISASI" -> OrganisasiColor.copy(alpha = 0.2f)
-                            else -> Grey200
-                        }
+                        color = Orange600.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(16.dp)
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = when (arsip.kategori) {
-                        "PRESTASI" -> Icons.Default.Star
-                        "SERTIFIKAT" -> Icons.Default.Description
-                        "ORGANISASI" -> Icons.Default.Groups
-                        else -> Icons.Default.Description
-                    },
-                    contentDescription = arsip.kategori,
-                    tint = when (arsip.kategori) {
-                        "PRESTASI" -> PrestasiColor
-                        "SERTIFIKAT" -> SertifikatColor
-                        "ORGANISASI" -> OrganisasiColor
-                        else -> Grey500
-                    }
+                    imageVector = Icons.Default.EmojiEvents,
+                    contentDescription = null,
+                    tint = Orange600,
+                    modifier = Modifier.size(28.dp)
                 )
             }
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Content
-            Column(modifier = Modifier.weight(1f)) {
+            Column {
                 Text(
-                    text = arsip.judul,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary
+                    text = prestasi.nama,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2
                 )
-
                 Spacer(modifier = Modifier.height(4.dp))
-
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
-                        color = when (arsip.kategori) {
-                            "PRESTASI" -> PrestasiColor
-                            "SERTIFIKAT" -> SertifikatColor
-                            "ORGANISASI" -> OrganisasiColor
-                            else -> Grey400
-                        },
-                        shape = RoundedCornerShape(4.dp)
+                        color = Orange600.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
-                            text = arsip.kategori,
+                            text = prestasi.jenis,
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextWhite,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            color = Orange600,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )
                     }
-
                     Spacer(modifier = Modifier.width(8.dp))
-
-                    Icon(
-                        imageVector = Icons.Default.DateRange,
-                        contentDescription = "Date",
-                        modifier = Modifier.size(14.dp),
-                        tint = TextSecondary
-                    )
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
                     Text(
-                        text = DateUtils.formatDateForDisplay(arsip.tanggal),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Icon(
-                        imageVector = Icons.Default.AttachFile,
-                        contentDescription = "File",
-                        modifier = Modifier.size(14.dp),
-                        tint = TextSecondary
-                    )
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    Text(
-                        text = "2.4 MB",
-                        style = MaterialTheme.typography.bodySmall,
+                        text = "${prestasi.tahun}",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = TextSecondary
                     )
                 }
             }
 
             Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = "Go to detail",
-                tint = TextSecondary
+                imageVector = Icons.Default.KeyboardArrowRight,
+                contentDescription = null,
+                tint = TextSecondary,
+                modifier = Modifier.size(20.dp)
             )
         }
     }
 }
 
 @Composable
-fun EmptyStateView() {
+private fun LoadingState() {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        CircularProgressIndicator(color = Orange600)
+    }
+}
+
+@Composable
+private fun EmptyState() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
             Icon(
-                imageVector = Icons.Default.Folder,
-                contentDescription = "Empty",
-                modifier = Modifier.size(80.dp),
-                tint = Grey400
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Belum ada arsip",
-                style = MaterialTheme.typography.titleMedium,
-                color = TextSecondary
+                imageVector = Icons.Default.Star,
+                contentDescription = null,
+                tint = Grey400,
+                modifier = Modifier.size(80.dp)
             )
             Text(
-                text = "Tambahkan arsip pertama Anda",
-                style = MaterialTheme.typography.bodySmall,
+                text = "Belum ada prestasi",
+                style = MaterialTheme.typography.titleLarge,
+                color = TextPrimary
+            )
+            Text(
+                text = "Tambahkan prestasi pertama Anda",
+                style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary
             )
         }
@@ -528,7 +371,7 @@ fun EmptyStateView() {
 }
 
 @Composable
-fun ErrorStateView(
+private fun ErrorState(
     message: String,
     onRetry: () -> Unit
 ) {
@@ -536,30 +379,29 @@ fun ErrorStateView(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
             Icon(
                 imageVector = Icons.Default.Error,
-                contentDescription = "Error",
-                modifier = Modifier.size(80.dp),
-                tint = ErrorRed
+                contentDescription = null,
+                tint = ErrorRed,
+                modifier = Modifier.size(80.dp)
             )
-            Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Terjadi Kesalahan",
-                style = MaterialTheme.typography.titleMedium,
+                text = "Oops!",
+                style = MaterialTheme.typography.headlineSmall,
                 color = TextPrimary
             )
             Text(
                 text = message,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyLarge,
                 color = TextSecondary
             )
-            Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = onRetry,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Orange600
-                )
+                colors = ButtonDefaults.buttonColors(containerColor = Orange600)
             ) {
                 Text("Coba Lagi")
             }

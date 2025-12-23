@@ -41,7 +41,6 @@ fun DashboardScreen(
     onNavigateToProfile: () -> Unit,
     onNavigateToSearch: () -> Unit,
 ) {
-    val authViewModel: AuthViewModel = viewModel()
     val authState by authViewModel.authState.collectAsState()
 
     val dashboardViewModel: DashboardViewModel = viewModel()
@@ -50,11 +49,6 @@ fun DashboardScreen(
     val error by dashboardViewModel.error.collectAsState()
 
 
-    // ✅ LOAD DATA SEKALI SAJA
-    LaunchedEffect(dashboardViewModel) {
-        Log.d("DashboardScreen", "🔄 Initial load dashboard data")
-        dashboardViewModel.loadDashboardData()
-    }
 
     // Logout navigation
     LaunchedEffect(authState.user) {

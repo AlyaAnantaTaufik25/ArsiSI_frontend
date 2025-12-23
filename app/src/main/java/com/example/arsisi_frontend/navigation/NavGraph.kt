@@ -13,18 +13,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-
-import androidx.compose.runtime.LaunchedEffect
+import androidx.navigation.navArgument
 import android.util.Log
-
 
 import com.example.arsisi_frontend.ui.auth.AuthViewModel
 import com.example.arsisi_frontend.ui.auth.AuthViewModelFactory
 import com.example.arsisi_frontend.ui.auth.LoginScreen
 import com.example.arsisi_frontend.ui.auth.RegisterScreen
 import com.example.arsisi_frontend.ui.dashboard.DashboardScreen
+import com.example.arsisi_frontend.ui.prestasi.PrestasiScreen
+import com.example.arsisi_frontend.ui.prestasi.PrestasiFormScreen
+import com.example.arsisi_frontend.ui.prestasi.PrestasiViewModel
 import com.example.arsisi_frontend.ui.splash.NavigationRoute
 import com.example.arsisi_frontend.ui.splash.SplashScreen
 import com.example.arsisi_frontend.ui.splash.SplashViewModel
@@ -38,9 +40,7 @@ fun NavGraph(
         AuthViewModelFactory(context.applicationContext as Application)
     }
 
-    // ✅ FIX #1: SHARED AUTH VIEWMODEL - SATU INSTANCE UNTUK SEMUA SCREEN
     val sharedAuthViewModel: AuthViewModel = viewModel(factory = authViewModelFactory)
-
     val splashViewModel: SplashViewModel = viewModel()
     val routeState by splashViewModel.nextRoute.collectAsState()
     val initialRoute = Screen.Splash.route
@@ -76,35 +76,26 @@ fun NavGraph(
         }
 
         // ============= LOGIN SCREEN =============
-// ============= LOGIN SCREEN =============
         composable(Screen.Login.route) {
-            // 🔥 FIX: AUTO-REDIRECT BACKUP di NavGraph level
-            val authState by sharedAuthViewModel.authState.collectAsState()
-            LaunchedEffect(authState.isSuccess) {
-                if (authState.isSuccess && authState.user != null) {
-                    Log.d("NavGraph", "💥 AUTO DASHBOARD FROM NAVGRAPH!")
-                    navController.navigate(Screen.Dashboard.route) {
+            LoginScreen(
+                onNavigateToRegister = {
+                    navController.navigate(Screen.Register.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
-                }
-            }
-
-            LoginScreen(
-                onNavigateToRegister = { navController.navigate(Screen.Register.route) },
+                },
                 onNavigateToDashboard = {
+                    Log.d("NavGraph", "🚀 NAV TO DASHBOARD FROM LOGIN")
                     navController.navigate(Screen.Dashboard.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
+                        launchSingleTop = true
                     }
                 },
                 viewModel = sharedAuthViewModel
             )
         }
 
-
         // ============= REGISTER SCREEN =============
         composable(Screen.Register.route) {
-            // ❌ HAPUS: val authViewModel: AuthViewModel = viewModel(factory = authViewModelFactory)
-
             RegisterScreen(
                 onNavigateToLogin = {
                     navController.navigate(Screen.Login.route) {
@@ -116,21 +107,20 @@ fun NavGraph(
                         popUpTo(Screen.Register.route) { inclusive = true }
                     }
                 },
-                viewModel = sharedAuthViewModel  // ✅ SHARED INSTANCE
+                viewModel = sharedAuthViewModel
             )
         }
 
         // ============= DASHBOARD SCREEN =============
         composable(Screen.Dashboard.route) {
-            // ❌ HAPUS: val authViewModel: AuthViewModel = viewModel(factory = authViewModelFactory)
-            val authState by sharedAuthViewModel.authState.collectAsState()  // ✅ SHARED STATE
+            val authState by sharedAuthViewModel.authState.collectAsState()
             val userName = authState.user?.nama ?: "Pengguna"
 
             DashboardScreen(
                 userName = userName,
-                authViewModel = sharedAuthViewModel,  // ✅ SHARED INSTANCE
+                authViewModel = sharedAuthViewModel,
                 onNavigateToLogin = {
-                    sharedAuthViewModel.logout()  // ✅ SHARED LOGOUT
+                    sharedAuthViewModel.logout()
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Dashboard.route) { inclusive = true }
                     }
@@ -144,12 +134,64 @@ fun NavGraph(
             )
         }
 
-        // RUTE LAINNYA (SAMA)
-        composable(Screen.MataKuliahList.route) { /* TODO */ }
-        composable(Screen.AgendaList.route) { /* TODO */ }
-        composable(Screen.PrestasiList.route) { /* TODO */ }
-        composable(Screen.DokumenAkademikList.route) { /* TODO */ }
-        composable(Screen.Profile.route) { /* TODO */ }
-        composable(Screen.Search.route) { /* TODO */ }
+        // ============= PRESTASI LIST ============= ✅ FIXED
+        composable(Screen.PrestasiList.route) {
+            val prestasiViewModel: PrestasiViewModel = viewModel()
+
+            PrestasiScreen(
+                viewModel = prestasiViewModel,
+                onAddClick = { navController.navigate("prestasi_form/-1") },
+                onArsipClick = { id -> navController.navigate("prestasi_detail/$id") }
+            )
+        }
+
+        // ============= PRESTASI FORM ============= ✅ FIXED
+        composable(
+            "prestasi_form/{prestasiId}",
+            arguments = listOf(
+                navArgument("prestasiId") {
+                    type = NavType.IntType
+                    defaultValue = -1
+                }
+            )
+        ) { backStackEntry ->
+            val prestasiViewModel: PrestasiViewModel = viewModel()
+            val prestasiId = backStackEntry.arguments?.getInt("prestasiId")
+
+            PrestasiFormScreen(
+                viewModel = prestasiViewModel,
+                prestasiId = if (prestasiId != -1) prestasiId else null,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // ============= PRESTASI DETAIL ============= ✅ READY
+        composable(
+            "prestasi_detail/{prestasiId}",
+            arguments = listOf(
+                navArgument("prestasiId") {
+                    type = NavType.IntType
+                }
+            )
+        ) { backStackEntry ->
+            val prestasiViewModel: PrestasiViewModel = viewModel()
+            val prestasiId = backStackEntry.arguments?.getInt("prestasiId") ?: 0
+
+            // Uncomment kalau sudah ada PrestasiDetailScreen
+            /*
+            PrestasiDetailScreen(
+                viewModel = prestasiViewModel,
+                prestasiId = prestasiId,
+                onNavigateBack = { navController.popBackStack() }
+            )
+            */
+        }
+
+        // ============= RUTE LAINNYA =============
+        composable(Screen.MataKuliahList.route) { /* TODO: MataKuliahScreen */ }
+        composable(Screen.AgendaList.route) { /* TODO: AgendaScreen */ }
+        composable(Screen.DokumenAkademikList.route) { /* TODO: AkademikScreen */ }
+        composable(Screen.Profile.route) { /* TODO: ProfileScreen */ }
+        composable(Screen.Search.route) { /* TODO: SearchScreen */ }
     }
 }

@@ -131,7 +131,7 @@ interface ApiService {
     @GET("prestasi/search")
     suspend fun searchPrestasi(
         @Header("Authorization") token: String,
-        @Query("mahasiswa_id") userId: Int,
+        @Query("mahasiswa_id") userId: Int? = null,
         @Query("query") query: String,
         @Query("kategori") kategori: String? = null
     ): Response<PrestasiResponse>
@@ -142,6 +142,41 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Query("mahasiswa_id") userId: Int
     ): Response<PrestasiStatistikResponse>
+
+    // ==================== ARSIP ====================
+
+    @GET("arsip")
+    suspend fun getArsip(
+        @Header("Authorization") token: String
+    ): Response<ArsipListResponse>  // ✅ FIXED - HAPUS mahasiswaId!
+
+    @GET("arsip/{id}")
+    suspend fun getArsipById(
+        @Header("Authorization") token: String,
+        @Path("id") arsipId: Int
+    ): Response<ArsipResponse>
+
+    @POST("arsip")
+    suspend fun createArsip(
+        @Header("Authorization") token: String,
+        @Body request: ArsipRequest
+    ): Response<ArsipResponse>
+
+    @PUT("arsip/{id}")
+    suspend fun updateArsip(
+        @Header("Authorization") token: String,
+        @Path("id") arsipId: Int,
+        @Body request: ArsipRequest
+    ): Response<ArsipResponse>
+
+    @DELETE("arsip/{id}")
+    suspend fun deleteArsip(
+        @Header("Authorization") token: String,
+        @Path("id") arsipId: Int
+    ): Response<BaseResponse>
+
+
+
     // ==================== FILE UPLOAD ENDPOINT ====================
 
     @Multipart

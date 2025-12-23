@@ -20,7 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.arsisi_frontend.data.model.Arsip
+import com.example.arsisi_frontend.data.model.Prestasi
 import com.example.arsisi_frontend.data.model.UiState
 import com.example.arsisi_frontend.ui.theme.*
 import com.example.arsisi_frontend.utils.Constants
@@ -29,12 +29,12 @@ import com.example.arsisi_frontend.utils.DateUtils
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PrestasiDetailScreen(
-    arsipId: Int,
+    prestasiId: Int,
     onNavigateBack: () -> Unit,
     onNavigateToEdit: (Int) -> Unit,
     viewModel: PrestasiViewModel = viewModel()
 ) {
-    val arsipDetailState by viewModel.prestasiDetailState.collectAsState()
+    val prestasiDetailState by viewModel.prestasiDetailState.collectAsState()
     val operationState by viewModel.operationState.collectAsState()
     val context = LocalContext.current
 
@@ -42,11 +42,11 @@ fun PrestasiDetailScreen(
     var showSuccessDialog by remember { mutableStateOf(false) }
 
     // Load detail saat screen dibuka
-    LaunchedEffect(arsipId) {
-        viewModel.loadPrestasiDetail(arsipId)
+    LaunchedEffect(prestasiId) {
+        viewModel.loadPrestasiDetail(prestasiId)
     }
 
-    // Handle operation result
+    // Handle hasil operasi delete
     LaunchedEffect(operationState) {
         when (operationState) {
             is UiState.Success -> {
@@ -54,7 +54,7 @@ fun PrestasiDetailScreen(
                 viewModel.resetOperationState()
             }
             is UiState.Error -> {
-                // Show error snackbar or dialog
+                // kalau mau, bisa tampilkan snackbar error di sini
                 viewModel.resetOperationState()
             }
             else -> {}
@@ -66,7 +66,7 @@ fun PrestasiDetailScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Detail Arsip",
+                        text = "Detail Prestasi",
                         fontWeight = FontWeight.Bold,
                         color = TextWhite
                     )
@@ -92,7 +92,7 @@ fun PrestasiDetailScreen(
                 .padding(paddingValues)
                 .background(BackgroundLight)
         ) {
-            when (arsipDetailState) {
+            when (prestasiDetailState) {
                 is UiState.Loading -> {
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center),
@@ -101,17 +101,20 @@ fun PrestasiDetailScreen(
                 }
 
                 is UiState.Success -> {
-                    val arsip = (arsipDetailState as UiState.Success<Arsip>).data
-                    DetailContent(
-                        arsip = arsip,
+                    val prestasi = (prestasiDetailState as UiState.Success<Prestasi>).data
+                    PrestasiDetailContent(
+                        prestasi = prestasi,
                         onDownload = {
-                            // Download file
-                            val intent = Intent(Intent.ACTION_VIEW).apply {
-                                data = Uri.parse("${Constants.BASE_URL.replace("/api/", "")}/${arsip.filePath}")
+                            // buka file di browser / PDF viewer
+                            prestasi.filePath?.let { path ->
+                                val url = "${Constants.BASE_URL.replace("/api/", "")}/$path"
+                                val intent = Intent(Intent.ACTION_VIEW).apply {
+                                    data = Uri.parse(url)
+                                }
+                                context.startActivity(intent)
                             }
-                            context.startActivity(intent)
                         },
-                        onEdit = { onNavigateToEdit(arsip.arsipId) },
+                        onEdit = { onNavigateToEdit(prestasi.id) },
                         onDelete = { showDeleteDialog = true }
                     )
                 }
@@ -129,13 +132,13 @@ fun PrestasiDetailScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = (arsipDetailState as UiState.Error).message,
+                            text = (prestasiDetailState as UiState.Error).message,
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextSecondary
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
-                            onClick = { viewModel.loadPrestasiDetail(arsipId) },
+                            onClick = { viewModel.loadPrestasiDetail(prestasiId) },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Orange600
                             )
@@ -150,21 +153,21 @@ fun PrestasiDetailScreen(
         }
     }
 
-    // Delete Confirmation Dialog
+    // Dialog konfirmasi hapus
     if (showDeleteDialog) {
         DeleteConfirmationDialog(
             onConfirm = {
-                viewModel.deletePrestasi(arsipId)
+                viewModel.deletePrestasi(prestasiId)
                 showDeleteDialog = false
             },
             onDismiss = { showDeleteDialog = false }
         )
     }
 
-    // Success Dialog
+    // Dialog sukses setelah hapus
     if (showSuccessDialog) {
         SuccessDialog(
-            message = "Arsip berhasil dihapus",
+            message = "Prestasi berhasil dihapus",
             onDismiss = {
                 showSuccessDialog = false
                 onNavigateBack()
@@ -174,8 +177,8 @@ fun PrestasiDetailScreen(
 }
 
 @Composable
-fun DetailContent(
-    arsip: Arsip,
+private fun PrestasiDetailContent(
+    prestasi: Prestasi,
     onDownload: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
@@ -185,15 +188,13 @@ fun DetailContent(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        // Header Card
+        // Header Card (ikon + judul + info file)
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = SurfaceWhite
-            ),
+            colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
         ) {
             Column(
@@ -202,13 +203,13 @@ fun DetailContent(
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Icon Category
+                // Icon kategori (jenis)
                 Box(
                     modifier = Modifier
                         .size(80.dp)
                         .clip(CircleShape)
                         .background(
-                            when (arsip.kategori) {
+                            when (prestasi.jenis.uppercase()) {
                                 "PRESTASI" -> PrestasiColor.copy(alpha = 0.2f)
                                 "SERTIFIKAT" -> SertifikatColor.copy(alpha = 0.2f)
                                 "ORGANISASI" -> OrganisasiColor.copy(alpha = 0.2f)
@@ -218,15 +219,15 @@ fun DetailContent(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = when (arsip.kategori) {
-                            "PRESTASI" -> Icons.Default.Star
+                        imageVector = when (prestasi.jenis.uppercase()) {
+                            "PRESTASI" -> Icons.Default.EmojiEvents
                             "SERTIFIKAT" -> Icons.Default.Description
                             "ORGANISASI" -> Icons.Default.Groups
                             else -> Icons.Default.Description
                         },
-                        contentDescription = arsip.kategori,
+                        contentDescription = prestasi.jenis,
                         modifier = Modifier.size(40.dp),
-                        tint = when (arsip.kategori) {
+                        tint = when (prestasi.jenis.uppercase()) {
                             "PRESTASI" -> PrestasiColor
                             "SERTIFIKAT" -> SertifikatColor
                             "ORGANISASI" -> OrganisasiColor
@@ -239,7 +240,7 @@ fun DetailContent(
 
                 // Judul
                 Text(
-                    text = arsip.judul,
+                    text = prestasi.nama,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary
@@ -247,35 +248,33 @@ fun DetailContent(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // File Info
+                // Info file sederhana (kalau backend belum pakai size/type, bisa hardcode sementara)
                 Text(
-                    text = "PDF • 2.4 MB",
+                    text = "Dokumen Arsip",
                     style = MaterialTheme.typography.bodySmall,
                     color = TextSecondary
                 )
             }
         }
 
-        // Detail Information
+        // Card detail informasi
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = SurfaceWhite
-            )
+            colors = CardDefaults.cardColors(containerColor = SurfaceWhite)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(20.dp)
             ) {
-                // Kategori
+                // Jenis / kategori
                 DetailRow(
                     label = "Kategori",
-                    value = arsip.kategori,
-                    valueColor = when (arsip.kategori) {
+                    value = prestasi.jenis,
+                    valueColor = when (prestasi.jenis.uppercase()) {
                         "PRESTASI" -> PrestasiColor
                         "SERTIFIKAT" -> SertifikatColor
                         "ORGANISASI" -> OrganisasiColor
@@ -289,10 +288,10 @@ fun DetailContent(
                     color = Grey200
                 )
 
-                // Tanggal Arsip
+                // Tanggal / Tahun
                 DetailRow(
-                    label = "Tanggal Arsip",
-                    value = DateUtils.formatDateForDisplay(arsip.tanggal)
+                    label = "Tahun",
+                    value = prestasi.tahun.toString()
                 )
 
                 Divider(
@@ -310,7 +309,7 @@ fun DetailContent(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = arsip.deskripsi,
+                        text = prestasi.deskripsi,
                         style = MaterialTheme.typography.bodyMedium,
                         color = TextSecondary
                     )
@@ -320,20 +319,17 @@ fun DetailContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Action Buttons
+        // Tombol aksi: Unduh, Edit, Hapus
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Download Button
             Button(
                 onClick = onDownload,
                 modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Teal500
-                ),
+                colors = ButtonDefaults.buttonColors(containerColor = Teal500),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(
@@ -345,7 +341,6 @@ fun DetailContent(
                 Text("Unduh")
             }
 
-            // Edit Button
             OutlinedButton(
                 onClick = onEdit,
                 modifier = Modifier.weight(1f),
@@ -363,7 +358,6 @@ fun DetailContent(
                 Text("Edit")
             }
 
-            // Delete Button
             OutlinedButton(
                 onClick = onDelete,
                 modifier = Modifier.weight(1f),
@@ -387,7 +381,7 @@ fun DetailContent(
 }
 
 @Composable
-fun DetailRow(
+private fun DetailRow(
     label: String,
     value: String,
     valueColor: androidx.compose.ui.graphics.Color = TextPrimary,
@@ -441,14 +435,14 @@ fun DeleteConfirmationDialog(
         },
         title = {
             Text(
-                text = "Apakah Anda yakin ingin menghapus arsip ini?",
+                text = "Apakah Anda yakin ingin menghapus prestasi ini?",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
         },
         text = {
             Text(
-                text = "Arsip yang dihapus tidak dapat dikembalikan",
+                text = "Data yang dihapus tidak dapat dikembalikan.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary
             )
@@ -456,9 +450,7 @@ fun DeleteConfirmationDialog(
         confirmButton = {
             Button(
                 onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = ErrorRed
-                )
+                colors = ButtonDefaults.buttonColors(containerColor = ErrorRed)
             ) {
                 Text("YAKIN")
             }
@@ -479,9 +471,7 @@ fun SuccessDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = SurfaceWhite
-            )
+            colors = CardDefaults.cardColors(containerColor = SurfaceWhite)
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
@@ -495,7 +485,7 @@ fun SuccessDialog(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Arsip Berhasil disimpan",
+                    text = "Berhasil",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -509,9 +499,7 @@ fun SuccessDialog(
                 Button(
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Orange600
-                    )
+                    colors = ButtonDefaults.buttonColors(containerColor = Orange600)
                 ) {
                     Text("OK")
                 }

@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.arsisi_frontend.R
 import com.example.arsisi_frontend.ui.theme.*
+import kotlinx.coroutines.delay
 
 @Composable
 fun LoginScreen(
@@ -41,24 +42,15 @@ fun LoginScreen(
 
     // ================== STATE AUTH ==================
     val authState by viewModel.authState.collectAsState()
-    var showError by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf("") }
 
-    // ================== NAVIGATION - FIXED ✅ ==================
+    // ================== AUTO NAVIGATION ✅ ==================
     LaunchedEffect(authState) {
-        Log.d("LoginScreen", "🔍 STATE: success=${authState.isSuccess}, error=${authState.error}")
+        Log.d("LoginScreen", "🔍 STATE: loading=${authState.isLoading}, success=${authState.isSuccess}, error=${authState.error}")
 
-        // SUCCESS
         if (authState.isSuccess && authState.user != null) {
-            Log.d("LoginScreen", "🎯 NAV DASHBOARD!")
+            Log.d("LoginScreen", "🎯 AUTO NAV TO DASHBOARD")
+            delay(500)  // Brief success feedback
             onNavigateToDashboard()
-        }
-
-        // ERROR
-        if (authState.error != null) {
-            errorMessage = authState.error!!
-            showError = true
-            viewModel.resetState()
         }
     }
 
@@ -95,19 +87,19 @@ fun LoginScreen(
         // ====== NIM ======
         OutlinedTextField(
             value = nim,
-            onValueChange = {
-                nim = it
-                if (showError) showError = false
-            },
+            onValueChange = { nim = it },
             label = { Text("NIM") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
+            enabled = !authState.isLoading,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Orange500,
                 unfocusedBorderColor = Gray400,
                 focusedLabelColor = Orange500,
                 unfocusedLabelColor = Gray600,
+                disabledBorderColor = Gray400,
+                disabledLabelColor = Gray600
             )
         )
 
@@ -116,66 +108,72 @@ fun LoginScreen(
         // ====== PASSWORD ======
         OutlinedTextField(
             value = password,
-            onValueChange = {
-                password = it
-                if (showError) showError = false
-            },
+            onValueChange = { password = it },
             label = { Text("Password") },
             visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             trailingIcon = {
-                IconButton(onClick = { showPassword = !showPassword }) {
+                IconButton(onClick = { showPassword = !showPassword }, enabled = !authState.isLoading) {
                     Icon(
                         imageVector = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                        contentDescription = "Toggle password visibility"
+                        contentDescription = "Toggle password visibility",
+                        tint = if (authState.isLoading) Gray400 else Orange500
                     )
                 }
             },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
+            enabled = !authState.isLoading,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Orange500,
                 unfocusedBorderColor = Gray400,
                 focusedLabelColor = Orange500,
                 unfocusedLabelColor = Gray600,
+                disabledBorderColor = Gray400,
+                disabledLabelColor = Gray600
             )
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // ====== ERROR MESSAGE ======
-        if (showError) {
-            Text(
-                text = errorMessage,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp)
-            )
+        // ====== SERVER ERROR ✅ ==================
+        authState.error?.let { error ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    text = error,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // ====== BUTTON MASUK ======
+        // ====== BUTTON MASUK ✅ ==================
         Button(
             onClick = {
-                Log.d("LoginScreen", "🔘 LOGIN BUTTON: nim='${nim}', password='${password.length} chars'")
-
-                if (nim.isBlank() || password.isBlank()) {
-                    errorMessage = "NIM dan Password harus diisi"
-                    showError = true
-                } else {
-                    showError = false
+                if (nim.isBlank()) {
+                    Log.w("LoginScreen", "⚠️ NIM kosong")
+                } else if (password.isBlank()) {
+                    Log.w("LoginScreen", "⚠️ Password kosong")
+                } else if (!authState.isLoading) {
+                    Log.d("LoginScreen", "🔘 LOGIN: nim=${nim.trim()}")
                     viewModel.login(nim.trim(), password.trim())
                 }
             },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Orange500),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (authState.isLoading) Gray400 else Orange500
+            ),
             shape = RoundedCornerShape(28.dp),
-            enabled = !authState.isLoading
+            enabled = nim.isNotBlank() && password.isNotBlank() && !authState.isLoading
         ) {
             if (authState.isLoading) {
                 CircularProgressIndicator(
@@ -191,22 +189,7 @@ fun LoginScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-
-
-        // ====== BUTTON TEST ======
-        Spacer(modifier = Modifier.height(16.dp))
-        OutlinedButton(
-            onClick = {
-                Log.d("LoginScreen", "🧪 MANUAL NAV TEST")
-                onNavigateToDashboard()
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("🧪 TEST: Go Dashboard")
-        }
-
+        Spacer(modifier = Modifier.height(32.dp))
 
         // ====== LINK DAFTAR ======
         Row(
@@ -217,13 +200,15 @@ fun LoginScreen(
             Text(
                 text = "Belum punya akun? ",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Gray600
+                color = if (authState.isLoading) Gray400 else Gray600
             )
             Text(
                 text = "Daftar",
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                color = Orange500,
-                modifier = Modifier.clickable { onNavigateToRegister() }
+                color = if (authState.isLoading) Gray400 else Orange500,
+                modifier = Modifier.clickable(enabled = !authState.isLoading) {
+                    onNavigateToRegister()
+                }
             )
         }
 

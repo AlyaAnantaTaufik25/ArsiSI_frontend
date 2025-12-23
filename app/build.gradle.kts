@@ -126,4 +126,10 @@ dependencies {
 
     implementation("androidx.activity:activity-compose:1.9.2")  // ↑ 1.8.2 → 1.9.2
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))  // ↑ Terbaru!
+
+    // Retrofit + Gson (TAMBAH INI)
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+
 }

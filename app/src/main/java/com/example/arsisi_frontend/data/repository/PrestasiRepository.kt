@@ -5,316 +5,211 @@ import android.net.Uri
 import com.example.arsisi_frontend.data.model.*
 import com.example.arsisi_frontend.data.remote.ApiClient
 import com.example.arsisi_frontend.utils.Constants
+import com.example.arsisi_frontend.utils.PreferencesManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.asRequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.io.FileOutputStream
-import java.io.IOException
 
-/**
- * Repository untuk mengelola data Prestasi.
- * Semua fungsi membungkus hasil dengan Result<T>.
- */
-class PrestasiRepository(private val context: Context) {
+class PrestasiRepository(
+    private val context: Context,
+    private val prefs: PreferencesManager
+) {
 
     private val apiService = ApiClient.apiService
-    // TODO: ganti dengan token asli dari sistem auth / PreferencesManager
-    private val TOKEN_PLACEHOLDER = "Bearer "
 
-    /**
-     * Mengambil daftar prestasi berdasarkan ID pengguna.
-     */
-    suspend fun getPrestasiList(userId: Int): Result<List<Prestasi>> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.getPrestasi("Bearer $TOKEN_PLACEHOLDER", userId)
-
-                if (response.isSuccessful) {
-                    val body = response.body()
-                    if (body?.success == true) {
-                        Result.success(body.data ?: emptyList())
-                    } else {
-                        Result.failure(Exception(body?.message ?: "Server error"))
-                    }
-                } else {
-                    Result.failure(Exception("Error ${response.code()}: ${response.message()}"))
-                }
-            } catch (e: IOException) {
-                Result.failure(Exception("Network error"))
-            } catch (e: Exception) {
-                Result.failure(Exception(e.message ?: "Unknown error"))
-            }
-        }
+    private suspend fun getAuthHeader(): String {
+        val token = prefs.getToken() ?: ""
+        return "Bearer $token"
     }
 
-    /**
-     * Mengambil satu prestasi berdasarkan ID.
-     */
-    suspend fun getPrestasiById(prestasiId: Int): Result<Prestasi> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.getPrestasiById(TOKEN_PLACEHOLDER, prestasiId)
+    // =========================================================
+    // LIST - Pakai ARSIP API + Filter Prestasi
+    // =========================================================
 
-                if (response.isSuccessful) {
-                    val body = response.body()
-                    if (body?.success == true) {
-                        val list = body.data ?: emptyList()
-                        if (list.isNotEmpty()) {
-                            Result.success(list.first())
-                        } else {
-                            Result.failure(Exception("Data not found"))
+    suspend fun getPrestasiList(): Result<List<Prestasi>> = withContext(Dispatchers.IO) {
+        try {
+            val authHeader = getAuthHeader()
+            // ✅ FIX: Pakai getArsip, bukan getPrestasi
+            val response = apiService.getArsip(authHeader)
+
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body?.success == true) {
+                    val arsipList = body.data ?: emptyList()
+
+                    // ✅ Filter prestasi dari arsip
+                    val prestasiList = arsipList
+                        .filter {
+                            it.kategori.lowercase().contains("prestasi") ||
+                                    it.kategori.lowercase().contains("prest")
                         }
-                    } else {
-                        Result.failure(Exception(body?.message ?: Constants.ERROR_SERVER))
-                    }
-                } else {
-                    Result.failure(Exception("Error ${response.code()}: ${response.message()}"))
-                }
-            } catch (e: IOException) {
-                Result.failure(Exception(Constants.ERROR_NETWORK))
-            } catch (e: Exception) {
-                Result.failure(Exception(e.message ?: Constants.ERROR_GENERIC))
-            }
-        }
-    }
-
-    /**
-     * Membuat prestasi baru.
-     */
-    suspend fun createPrestasi(request: PrestasiRequest): Result<Prestasi> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.createPrestasi(TOKEN_PLACEHOLDER, request)
-
-                if (response.isSuccessful) {
-                    val body = response.body()
-                    if (body?.success == true) {
-                        val list = body.data ?: emptyList()
-                        if (list.isNotEmpty()) {
-                            Result.success(list.first())
-                        } else {
-                            Result.failure(Exception("Failed to create prestasi"))
+                        .map { arsip ->
+                            Prestasi(
+                                id = arsip.arsipId,
+                                userId = arsip.mahasiswaId,
+                                nama = arsip.judul,
+                                jenis = arsip.kategori,
+                                tingkat = "Lokal", // Default
+                                tahun = arsip.tanggal?.substring(0, 4)?.toIntOrNull() ?: 2024,
+                                penyelenggara = "Penyelenggara", // Default
+                                deskripsi = arsip.deskripsi ?: "",
+                                filePath = arsip.filePath
+                            )
                         }
-                    } else {
-                        Result.failure(Exception(body?.message ?: Constants.ERROR_SERVER))
-                    }
+
+                    Result.success(prestasiList)
                 } else {
-                    Result.failure(Exception("Error ${response.code()}: ${response.message()}"))
+                    Result.failure(Exception(body?.message ?: "Gagal memuat prestasi"))
                 }
-            } catch (e: IOException) {
-                Result.failure(Exception(Constants.ERROR_NETWORK))
-            } catch (e: Exception) {
-                Result.failure(Exception(e.message ?: Constants.ERROR_GENERIC))
+            } else {
+                Result.failure(Exception("Error ${response.code()}: ${response.message()}"))
             }
+        } catch (e: Exception) {
+            Result.failure(Exception(e.message ?: Constants.ERROR_GENERIC))
         }
     }
 
-    /**
-     * Mencari prestasi berdasarkan kata kunci dan kategori.
-     */
-    suspend fun searchPrestasi(
-        userId: Int,
-        query: String,
-        kategori: String? = null
-    ): Result<List<Prestasi>> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.searchPrestasi(
-                    "Bearer $TOKEN_PLACEHOLDER",
-                    userId,
-                    query,
-                    kategori
-                )
+    // =========================================================
+    // CREATE - Pakai ArsipRequest (TANPA userId di body)
+    // =========================================================
 
-                if (response.isSuccessful) {
-                    val body = response.body()
-                    if (body?.success == true) {
-                        Result.success(body.data ?: emptyList())
-                    } else {
-                        Result.failure(Exception(body?.message ?: "Search server error"))
-                    }
-                } else {
-                    Result.failure(Exception("Error ${response.code()}: ${response.message()}"))
-                }
-            } catch (e: IOException) {
-                Result.failure(Exception("Network error during search"))
-            } catch (e: Exception) {
-                Result.failure(Exception(e.message ?: "Unknown search error"))
+    suspend fun createPrestasi(
+        judul: String,
+        deskripsi: String,
+        tanggal: String,
+        kategori: String = "PRESTASI"
+    ): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val authHeader = getAuthHeader()
+            // ✅ FIX: Backend ambil ID dari token, bukan body
+            val request = ArsipRequest(
+                kategori = kategori,
+                judul = judul,
+                deskripsi = deskripsi,
+                tanggal = tanggal
+            )
+
+            val response = apiService.createArsip(authHeader, request) // ✅ Arsip API
+
+            if (response.isSuccessful) {
+                val body = response.body()
+                Result.success(body?.message ?: "Prestasi berhasil dibuat")
+            } else {
+                Result.failure(Exception("Error ${response.code()}: ${response.message()}"))
             }
+        } catch (e: Exception) {
+            Result.failure(Exception(e.message ?: Constants.ERROR_GENERIC))
         }
     }
 
-    /**
-     * Memperbarui prestasi yang sudah ada.
-     */
+    // =========================================================
+    // UPDATE - Pakai ArsipRequest
+    // =========================================================
+
     suspend fun updatePrestasi(
         prestasiId: Int,
-        request: PrestasiRequest
-    ): Result<Prestasi> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.updatePrestasi(
-                    TOKEN_PLACEHOLDER,
-                    prestasiId,
-                    request
-                )
+        judul: String,
+        deskripsi: String,
+        tanggal: String,
+        kategori: String = "PRESTASI"
+    ): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val authHeader = getAuthHeader()
+            val request = ArsipRequest(
+                kategori = kategori,
+                judul = judul,
+                deskripsi = deskripsi,
+                tanggal = tanggal
+            )
 
-                if (response.isSuccessful) {
-                    val body = response.body()
-                    if (body?.success == true) {
-                        val list = body.data ?: emptyList()
-                        if (list.isNotEmpty()) {
-                            Result.success(list.first())
-                        } else {
-                            Result.failure(Exception("Failed to update prestasi"))
-                        }
-                    } else {
-                        Result.failure(Exception(body?.message ?: Constants.ERROR_SERVER))
-                    }
-                } else {
-                    Result.failure(Exception("Error ${response.code()}: ${response.message()}"))
-                }
-            } catch (e: IOException) {
-                Result.failure(Exception(Constants.ERROR_NETWORK))
-            } catch (e: Exception) {
-                Result.failure(Exception(e.message ?: Constants.ERROR_GENERIC))
+            val response = apiService.updateArsip(authHeader, prestasiId, request)
+
+            if (response.isSuccessful) {
+                val body = response.body()
+                Result.success(body?.message ?: "Prestasi berhasil diupdate")
+            } else {
+                Result.failure(Exception("Error ${response.code()}: ${response.message()}"))
             }
+        } catch (e: Exception) {
+            Result.failure(Exception(e.message ?: Constants.ERROR_GENERIC))
         }
     }
 
-    /**
-     * Menghapus prestasi.
-     */
-    suspend fun deletePrestasi(prestasiId: Int): Result<String> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.deletePrestasi(TOKEN_PLACEHOLDER, prestasiId)
+    // =========================================================
+    // DELETE - Sudah benar
+    // =========================================================
 
-                if (response.isSuccessful) {
-                    val body = response.body()
-                    if (body?.success == true) {
-                        Result.success(body.message ?: Constants.SUCCESS_DELETE)
-                    } else {
-                        Result.failure(Exception(body?.message ?: Constants.ERROR_SERVER))
-                    }
-                } else {
-                    Result.failure(Exception("Error ${response.code()}: ${response.message()}"))
-                }
-            } catch (e: IOException) {
-                Result.failure(Exception(Constants.ERROR_NETWORK))
-            } catch (e: Exception) {
-                Result.failure(Exception(e.message ?: Constants.ERROR_GENERIC))
+    suspend fun deletePrestasi(prestasiId: Int): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val authHeader = getAuthHeader()
+            val response = apiService.deleteArsip(authHeader, prestasiId)
+
+            if (response.isSuccessful) {
+                val body = response.body()
+                Result.success(body?.message ?: "Prestasi berhasil dihapus")
+            } else {
+                Result.failure(Exception("Error ${response.code()}: ${response.message()}"))
             }
+        } catch (e: Exception) {
+            Result.failure(Exception(e.message ?: Constants.ERROR_GENERIC))
         }
     }
 
-    /**
-     * Mengambil statistik prestasi per user.
-     * Pastikan model dan endpoint API sesuai dengan project-mu.
-     */
-    suspend fun getStatistik(userId: Int): Result<ArsipStatistik> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.getPrestasiStatistik(
-                    "Bearer $TOKEN_PLACEHOLDER",
-                    userId
-                )
+    // =========================================================
+    // DETAIL - Cari dari list (karena tidak ada endpoint detail arsip)
+    // =========================================================
 
-                if (response.isSuccessful) {
-                    val body = response.body()
-                    if (body?.success == true && body.data != null) {
-                        Result.success(body.data)
-                    } else {
-                        Result.failure(Exception(body?.message ?: "Failed to load statistik"))
-                    }
+    suspend fun getPrestasiById(prestasiId: Int): Result<Prestasi> = withContext(Dispatchers.IO) {
+        try {
+            val prestasiList = getPrestasiList()
+            if (prestasiList.isSuccess) {
+                val prestasi = prestasiList.getOrNull()?.find { it.id == prestasiId }
+                if (prestasi != null) {
+                    Result.success(prestasi)
                 } else {
-                    Result.failure(Exception("Error ${response.code()}: ${response.message()}"))
+                    Result.failure(Exception("Prestasi tidak ditemukan"))
                 }
-            } catch (e: IOException) {
-                Result.failure(Exception("Network error"))
-            } catch (e: Exception) {
-                Result.failure(Exception(e.message ?: "Unknown error"))
+            } else {
+                Result.failure(Exception("Gagal memuat data prestasi"))
             }
+        } catch (e: Exception) {
+            Result.failure(Exception(e.message ?: Constants.ERROR_GENERIC))
         }
     }
 
-    /**
-     * Upload file (image atau PDF).
-     */
-    suspend fun uploadFile(uri: Uri, fileType: String): Result<String> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val inputStream = context.contentResolver.openInputStream(uri)
-                    ?: return@withContext Result.failure(Exception("Cannot open file"))
+    // =========================================================
+    // STATISTIK - Dari prestasi list
+    // =========================================================
 
-                val fileName =
-                    "upload_${System.currentTimeMillis()}.${getFileExtension(uri)}"
-                val tempFile = File(context.cacheDir, fileName)
-
-                FileOutputStream(tempFile).use { output ->
-                    inputStream.copyTo(output)
-                }
-                inputStream.close()
-
-                if (tempFile.length() > Constants.MAX_FILE_SIZE) {
-                    tempFile.delete()
-                    return@withContext Result.failure(Exception(Constants.ERROR_FILE_TOO_LARGE))
-                }
-
-                val requestFile =
-                    tempFile.asRequestBody(getMimeType(uri).toMediaTypeOrNull())
-                val body = MultipartBody.Part.createFormData(
-                    "file",
-                    tempFile.name,
-                    requestFile
+    suspend fun getStatistik(): Result<ArsipStatistik> = withContext(Dispatchers.IO) {
+        try {
+            val prestasiListResult = getPrestasiList()
+            if (prestasiListResult.isSuccess) {
+                val prestasiList = prestasiListResult.getOrNull() ?: emptyList()
+                val stats = ArsipStatistik(
+                    totalArsip = prestasiList.size,
+                    totalPrestasi = prestasiList.size,
+                    totalSertifikat = 0,
+                    totalOrganisasi = 0
                 )
-                val typeBody =
-                    fileType.toRequestBody("text/plain".toMediaTypeOrNull())
-
-                val response = apiService.uploadFile(
-                    TOKEN_PLACEHOLDER,
-                    body,
-                    typeBody
-                )
-
-                tempFile.delete()
-
-                if (response.isSuccessful) {
-                    val bodyResp = response.body()
-                    if (bodyResp?.success == true && bodyResp.filePath != null) {
-                        Result.success(bodyResp.filePath)
-                    } else {
-                        Result.failure(Exception(bodyResp?.message ?: Constants.ERROR_SERVER))
-                    }
-                } else {
-                    Result.failure(Exception("Error ${response.code()}: ${response.message()}"))
-                }
-            } catch (e: IOException) {
-                Result.failure(Exception(Constants.ERROR_NETWORK))
-            } catch (e: Exception) {
-                Result.failure(Exception(e.message ?: Constants.ERROR_GENERIC))
+                Result.success(stats)
+            } else {
+                Result.failure(Exception("Gagal memuat statistik"))
             }
+        } catch (e: Exception) {
+            Result.failure(Exception(e.message ?: Constants.ERROR_GENERIC))
         }
     }
 
-    // --- Helper functions ---
+    // =========================================================
+    // UPLOAD FILE - Sementara disable (pakai multer backend)
+    // =========================================================
 
-    private fun getFileExtension(uri: Uri): String {
-        return context.contentResolver.getType(uri)?.let { mimeType ->
-            when {
-                mimeType.contains("pdf") -> "pdf"
-                mimeType.contains("jpeg") || mimeType.contains("jpg") -> "jpg"
-                mimeType.contains("png") -> "png"
-                else -> "jpg"
-            }
-        } ?: "jpg"
+    /*
+    suspend fun uploadFile(uri: Uri): Result<String> = withContext(Dispatchers.IO) {
+        // Disable dulu, pakai multer di backend
+        Result.failure(Exception("Upload file belum diimplementasi"))
     }
-
-    private fun getMimeType(uri: Uri): String {
-        return context.contentResolver.getType(uri) ?: "application/octet-stream"
-    }
+    */
 }
