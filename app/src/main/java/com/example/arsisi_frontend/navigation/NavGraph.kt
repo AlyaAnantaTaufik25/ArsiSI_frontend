@@ -2,20 +2,28 @@ package com.example.arsisi_frontend.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.example.arsisi_frontend.data.repository.AkademikRepository
 import com.example.arsisi_frontend.ui.akademik.AkademikDetailScreen
 import com.example.arsisi_frontend.ui.akademik.AkademikFormScreen
 import com.example.arsisi_frontend.ui.akademik.AkademikListScreen
 import com.example.arsisi_frontend.ui.akademik.AkademikViewModel
+import com.example.arsisi_frontend.ui.akademik.AkademikViewModelFactory
 
 @Composable
-fun NavGraph(navController: NavHostController) {
-    // Inisialisasi ViewModel di level NavGraph agar data persist antar layar
-    val akademikViewModel = remember { AkademikViewModel() }
+fun NavGraph(
+    navController: NavHostController,
+    akademikRepository: AkademikRepository
+) {
+    // Inisialisasi ViewModel dengan Factory
+    val akademikViewModel: AkademikViewModel = viewModel(
+        factory = AkademikViewModelFactory(akademikRepository)
+    )
 
     NavHost(navController = navController, startDestination = "akademik_list") {
 

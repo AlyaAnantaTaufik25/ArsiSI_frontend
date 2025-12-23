@@ -66,8 +66,14 @@ fun AkademikDetailScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val document = viewModel.getDocumentById(documentId)
+    val document by viewModel.currentDocument
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var isDownloading by remember { mutableStateOf(false) }
+
+    // Load document saat screen dibuka
+    LaunchedEffect(documentId) {
+        viewModel.loadDocumentById(documentId)
+    }
 
     // Launcher untuk meminta izin notifikasi (Android 13+)
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -83,7 +89,10 @@ fun AkademikDetailScreen(
         }
     }
 
-    if (document == null) {
+    // Simpan document ke local variable untuk menghindari smart cast error
+    val currentDoc = document
+    
+    if (currentDoc == null) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Dokumen tidak ditemukan")
         }
@@ -114,6 +123,7 @@ fun AkademikDetailScreen(
             return
         }
 
+        isDownloading = true
         Toast.makeText(context, "Mengunduh...", Toast.LENGTH_SHORT).show()
 
         scope.launch {
@@ -121,6 +131,7 @@ fun AkademikDetailScreen(
                 saveToDownloads(context, uriString, fileName)
             }
 
+            isDownloading = false
             if (success) {
                 // Tampilkan Notifikasi di Status Bar
                 showDownloadNotification(context, fileName)
@@ -149,42 +160,48 @@ fun AkademikDetailScreen(
         Column(
             modifier = Modifier.padding(innerPadding).verticalScroll(rememberScrollState())
         ) {
-            HeaderImageSection(category = document.category)
+            HeaderImageSection(category = currentDoc.category)
 
             Column(
                 modifier = Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                MainInfoSection(title = document.title, date = "Ditambahkan pada ${document.date}")
-                DescriptionSection(description = document.description)
+                MainInfoSection(
+                    title = currentDoc.title, 
+                    date = "Ditambahkan pada ${currentDoc.date}",
+                    updatedAt = currentDoc.updatedAt
+                )
+                DescriptionSection(description = currentDoc.description)
 
                 Column {
                     SectionTitle(icon = Icons.Default.Description, title = "File Utama")
                     Spacer(Modifier.height(8.dp))
                     FileItem(
-                        fileName = document.fileName,
-                        fileSize = document.fileSize,
+                        fileName = currentDoc.fileName,
+                        fileSize = currentDoc.fileSize,
                         isMain = true,
-                        onClick = { openFile(document.fileUri) },
-                        onDownloadClick = { downloadFile(document.fileUri, document.fileName) }
+                        onClick = { openFile(currentDoc.fileUri) },
+                        onDownloadClick = { downloadFile(currentDoc.fileUri, currentDoc.fileName) }
                     )
                 }
 
                 DocumentActionButtons(
-                    onViewClick = { openFile(document.fileUri) },
-                    onDownloadClick = { downloadFile(document.fileUri, document.fileName) }
+                    onViewClick = { openFile(currentDoc.fileUri) },
+                    onDownloadClick = { downloadFile(currentDoc.fileUri, currentDoc.fileName) },
+                    isDownloading = isDownloading
                 )
 
-                if (document.attachments.isNotEmpty()) {
+                if (currentDoc.attachments.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         SectionTitle(icon = Icons.Default.AttachFile, title = "File Pendukung")
-                        document.attachments.forEach { (name, size, uri) ->
+                        currentDoc.attachments.forEach { attachment ->
                             FileItem(
-                                fileName = name,
-                                fileSize = size,
+                                fileName = if (attachment.description.isNotEmpty()) attachment.description else attachment.fileName,
+                                fileSize = attachment.fileSize,
                                 isMain = false,
-                                onClick = { openFile(uri) },
-                                onDownloadClick = { downloadFile(uri, name) }
+                                onClick = { openFile(attachment.fileUri) },
+                                onDownloadClick = { downloadFile(attachment.fileUri, attachment.fileName) },
+                                subtitle = if (attachment.description.isNotEmpty()) attachment.fileName else null
                             )
                         }
                     }
@@ -196,7 +213,7 @@ fun AkademikDetailScreen(
     if (showDeleteDialog) {
         com.example.arsisi_frontend.ui.akademik.ConfirmationDialog(
             title = "Hapus Dokumen?",
-            message = "Yakin hapus '${document.title}'?",
+            message = "Yakin hapus '${currentDoc.title}'?",
             confirmText = "HAPUS",
             isDeleteType = true,
             onDismiss = { showDeleteDialog = false },
@@ -289,29 +306,175 @@ private fun showDownloadNotification(context: Context, fileName: String) {
 
 @Composable
 fun HeaderImageSection(category: String) {
+    // Tentukan warna, icon utama, dan icon sekunder berdasarkan kategori
+    val (backgroundColor, mainIcon, secondaryIcon, iconColor) = when (category.lowercase()) {
+        "administrasi" -> Quadruple(
+            Color(0xFFE3F2FD), // Light Blue background
+            Icons.Default.Folder,
+            Icons.Default.Description,
+            Color(0xFF1976D2) // Blue icon
+        )
+        "akademik" -> Quadruple(
+            Color(0xFFF3E5F5), // Light Purple background
+            Icons.Default.School,
+            Icons.Default.MenuBook,
+            Color(0xFF7B1FA2) // Purple icon
+        )
+        "laporan" -> Quadruple(
+            Color(0xFFE8F5E9), // Light Green background
+            Icons.Default.Assessment,
+            Icons.Default.BarChart,
+            Color(0xFF388E3C) // Green icon
+        )
+        else -> Quadruple(
+            Color(0xFFF5F5F5), // Light Gray background
+            Icons.Default.Description,
+            Icons.Default.FolderOpen,
+            Color(0xFF616161) // Gray icon
+        )
+    }
+    
     Box(modifier = Modifier.fillMaxWidth().height(220.dp)) {
-        Image(painter = painterResource(id = android.R.drawable.ic_menu_gallery), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().background(Color.LightGray))
-        Surface(color = SoftOrange, shape = RoundedCornerShape(topEnd = 24.dp), modifier = Modifier.align(Alignment.BottomStart)) {
-            Row(modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.School, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp)); Text(category, color = Color.White, fontWeight = FontWeight.Bold)
+        // Background dengan warna soft
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(backgroundColor)
+        )
+        
+        // Logo besar di tengah dengan efek shadow
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .size(120.dp)
+                .background(
+                    color = iconColor.copy(alpha = 0.1f),
+                    shape = androidx.compose.foundation.shape.CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            // Icon utama besar
+            Icon(
+                mainIcon,
+                contentDescription = null,
+                tint = iconColor,
+                modifier = Modifier.size(60.dp)
+            )
+        }
+        
+        // Icon kecil di pojok kanan atas sebagai aksen
+        Icon(
+            secondaryIcon,
+            contentDescription = null,
+            tint = iconColor.copy(alpha = 0.3f),
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(20.dp)
+                .size(40.dp)
+        )
+        
+        // Badge kategori di pojok kiri bawah
+        Surface(
+            color = Color.White,
+            shape = RoundedCornerShape(topEnd = 24.dp, bottomEnd = 0.dp),
+            modifier = Modifier.align(Alignment.BottomStart),
+            shadowElevation = 4.dp
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    mainIcon,
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    category,
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
             }
         }
     }
 }
 
+// Helper data class untuk return multiple values
+private data class Quadruple<A, B, C, D>(
+    val first: A,
+    val second: B,
+    val third: C,
+    val fourth: D
+)
+
 @Composable
-fun MainInfoSection(title: String, date: String) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+fun MainInfoSection(title: String, date: String, updatedAt: String? = null) {
+    Row(
+        modifier = Modifier.fillMaxWidth(), 
+        horizontalArrangement = Arrangement.SpaceBetween, 
+        verticalAlignment = Alignment.Top
+    ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = WarmBrown, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                title, 
+                style = MaterialTheme.typography.titleLarge, 
+                fontWeight = FontWeight.Bold, 
+                color = WarmBrown, 
+                maxLines = 2, 
+                overflow = TextOverflow.Ellipsis
+            )
             Spacer(Modifier.height(6.dp))
+            // Tanggal pertama kali upload
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.CalendarToday, null, tint = Color.Gray, modifier = Modifier.size(14.dp)); Spacer(Modifier.width(6.dp)); Text(date, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+                Icon(
+                    Icons.Default.CalendarToday, 
+                    null, 
+                    tint = Color.Gray, 
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    date, 
+                    style = MaterialTheme.typography.bodyMedium, 
+                    color = Color.Gray
+                )
+            }
+            // Tampilkan tanggal update jika ada
+            if (updatedAt != null) {
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Edit, 
+                        null, 
+                        tint = Color.Gray, 
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        "Diupdate pada $updatedAt", 
+                        style = MaterialTheme.typography.bodySmall, 
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
+                }
             }
         }
-        Box(modifier = Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)).background(LightRedBg), contentAlignment = Alignment.Center) {
-            Icon(Icons.Default.Description, "PDF", tint = Color.Red, modifier = Modifier.size(28.dp))
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(LightRedBg), 
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Default.Description, 
+                "PDF", 
+                tint = Color.Red, 
+                modifier = Modifier.size(28.dp)
+            )
         }
     }
 }
@@ -326,28 +489,97 @@ fun DescriptionSection(description: String) {
 }
 
 @Composable
-fun DocumentActionButtons(onViewClick: () -> Unit, onDownloadClick: () -> Unit) {
+fun DocumentActionButtons(
+    onViewClick: () -> Unit, 
+    onDownloadClick: () -> Unit,
+    isDownloading: Boolean = false
+) {
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        OutlinedButton(onClick = onViewClick, modifier = Modifier.weight(1f).height(48.dp), shape = RoundedCornerShape(10.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = SoftOrange), border = androidx.compose.foundation.BorderStroke(1.5.dp, SoftOrange)) {
-            Icon(Icons.Outlined.Visibility, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Lihat", fontWeight = FontWeight.SemiBold)
+        OutlinedButton(
+            onClick = onViewClick, 
+            modifier = Modifier.weight(1f).height(48.dp), 
+            shape = RoundedCornerShape(10.dp), 
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = SoftOrange), 
+            border = androidx.compose.foundation.BorderStroke(1.5.dp, SoftOrange)
+        ) {
+            Icon(Icons.Outlined.Visibility, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Lihat", fontWeight = FontWeight.SemiBold)
         }
-        Button(onClick = onDownloadClick, modifier = Modifier.weight(1f).height(48.dp), shape = RoundedCornerShape(10.dp), colors = ButtonDefaults.buttonColors(containerColor = SoftOrange)) {
-            Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Unduh", fontWeight = FontWeight.SemiBold)
+        Button(
+            onClick = onDownloadClick, 
+            modifier = Modifier.weight(1f).height(48.dp), 
+            shape = RoundedCornerShape(10.dp), 
+            colors = ButtonDefaults.buttonColors(containerColor = SoftOrange),
+            enabled = !isDownloading
+        ) {
+            if (isDownloading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    color = Color.White
+                )
+            } else {
+                Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Unduh", fontWeight = FontWeight.SemiBold)
+            }
         }
     }
 }
 
 @Composable
-fun FileItem(fileName: String, fileSize: String, isMain: Boolean, onClick: () -> Unit, onDownloadClick: () -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (isMain) Color(0xFFFFF8F3) else LightGrayBg).clickable { onClick() }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Default.Description, null, tint = if(isMain) SoftOrange else Color.Gray, modifier = Modifier.size(32.dp))
+fun FileItem(
+    fileName: String, 
+    fileSize: String, 
+    isMain: Boolean, 
+    onClick: () -> Unit, 
+    onDownloadClick: () -> Unit,
+    subtitle: String? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (isMain) Color(0xFFFFF8F3) else LightGrayBg)
+            .clickable { onClick() }
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            Icons.Default.Description, 
+            null, 
+            tint = if(isMain) SoftOrange else Color.Gray, 
+            modifier = Modifier.size(32.dp)
+        )
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(fileName, fontWeight = FontWeight.Medium, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("$fileSize • ${if(isMain) "File Utama" else "Lampiran"}", color = Color.Gray, fontSize = 12.sp)
+            Text(
+                fileName, 
+                fontWeight = FontWeight.Medium, 
+                fontSize = 14.sp, 
+                maxLines = 1, 
+                overflow = TextOverflow.Ellipsis
+            )
+            if (subtitle != null) {
+                Text(
+                    subtitle,
+                    fontSize = 11.sp,
+                    color = Color.Gray,
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Text(
+                "$fileSize • ${if(isMain) "File Utama" else "Lampiran"}", 
+                color = Color.Gray, 
+                fontSize = 12.sp
+            )
         }
         if (!isMain) {
-            IconButton(onClick = onDownloadClick) { Icon(Icons.Default.DownloadForOffline, "Download", tint = Color.Gray) }
+            IconButton(onClick = onDownloadClick) { 
+                Icon(Icons.Default.DownloadForOffline, "Download", tint = Color.Gray) 
+            }
         }
     }
 }
