@@ -13,29 +13,24 @@ import retrofit2.http.Path
 
 interface ApiService {
 
-    // GET: Melihat daftar tugas
-    @GET("tugas/saya")
+    @GET("tugas/saya")  // ✅ Hapus "api/"
     suspend fun getTugasSaya(): List<Tugas>
 
-    @GET("tugas/publik")
+    @GET("tugas/publik")  // ✅ Hapus "api/"
     suspend fun getTugasPublik(): List<Tugas>
 
-    // GET: Melihat daftar mata kuliah
-    @GET("mata-kuliah")
+    @GET("mata-kuliah")  // ✅ Hapus "api/"
     suspend fun getAllMataKuliah(): List<MataKuliah>
 
-    // POST: Membuat tugas baru
-    @POST("tugas")
-    suspend fun createTugas(@Body request: CreateTugasRequest): SimpleResponse
-
-    @GET("tugas/{id}")
+    @GET("tugas/{id}")  // ✅ Hapus "api/"
     suspend fun getTugasById(@Path("id") tugasId: Int): Tugas
 
-    // PUT: Mengupdate tugas berdasarkan ID
-    @PUT("tugas/{id}")
+    @POST("tugas")  // ✅ Hapus "api/"
+    suspend fun createTugas(@Body request: CreateTugasRequest): SimpleResponse
+
+    @PUT("tugas/{id}")  // ✅ Hapus "api/"
     suspend fun updateTugas(@Path("id") tugasId: Int, @Body request: CreateTugasRequest): SimpleResponse
 
-    // DELETE: Menghapus tugas berdasarkan ID
-    @DELETE("tugas/{id}")
+    @DELETE("tugas/{id}")  // ✅ Hapus "api/"
     suspend fun deleteTugas(@Path("id") tugasId: Int): SimpleResponse
 }

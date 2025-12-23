@@ -25,39 +25,39 @@ import java.util.Locale
 import java.util.TimeZone
 
 @Composable
-fun DetailTugasScreen(
+fun TugasDetailScreen(
     tugasId: Int,
     onNavigateBack: () -> Unit,
-    viewModel: TugasDetailViewModel
+    viewModel: TugasViewModel
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val uiState by viewModel.detailUiState.collectAsStateWithLifecycle()
 
     when (val state = uiState) {
-        DetailUiState.Loading -> Box(
+        is TugasViewModel.DetailUiState.Loading -> Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
             CircularProgressIndicator(color = PrimaryOrange)
         }
 
-        is DetailUiState.Error -> Box(
+        is TugasViewModel.DetailUiState.Error -> Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
             Text(state.message, color = Color.Red)
         }
 
-        is DetailUiState.Success -> {
+        is TugasViewModel.DetailUiState.Success -> {
             val tugas: Tugas = state.tugas
 
-            DetailTugasContent(
-                judul = tugas.judul,
+            TugasDetailContent(
+                judul = tugas.judul ?:  "",  // ✅ FIX INI
                 namaMatkul = tugas.namaMatakuliah ?: "-",
                 deskripsi = tugas.deskripsi ?: "",
                 linkTugas = tugas.linkTugas ?: "",
                 tipeTugas = tugas.tipe_tugas ?: "-",
                 visibility = tugas.visibility ?: "-",
-                waktuUploadText = formatWaktuUpload(tugas.createdAt),
+                waktuUploadText = formatWaktuUpload(tugas.created_at),
                 onNavigateBack = onNavigateBack
             )
         }
@@ -66,7 +66,7 @@ fun DetailTugasScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DetailTugasContent(
+private fun TugasDetailContent(
     judul: String,
     namaMatkul: String,
     deskripsi: String,
@@ -130,7 +130,6 @@ fun DetailTugasContent(
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Kartu judul + matkul
             Card(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
@@ -162,7 +161,6 @@ fun DetailTugasContent(
                 }
             }
 
-            // Kartu deskripsi
             Card(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
@@ -187,7 +185,6 @@ fun DetailTugasContent(
                 }
             }
 
-            // Kartu link tugas (klik buka browser)
             Card(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
@@ -235,7 +232,6 @@ fun DetailTugasContent(
                 }
             }
 
-            // Kartu informasi tambahan
             Card(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)

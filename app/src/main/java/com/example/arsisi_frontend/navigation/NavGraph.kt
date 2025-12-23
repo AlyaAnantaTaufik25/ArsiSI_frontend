@@ -1,5 +1,6 @@
 package com.example.arsisi_frontend.ui.navigation
 
+import android.app.Application
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -13,12 +14,17 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.example.arsisi_frontend.data.local.AppDatabase
 import com.example.arsisi_frontend.data.remote.ApiClient
 import com.example.arsisi_frontend.data.remote.ApiService
 import com.example.arsisi_frontend.data.remote.AuthInterceptor
 import com.example.arsisi_frontend.data.repository.MataKuliahRepository
 import com.example.arsisi_frontend.data.repository.TugasRepository
-import com.example.arsisi_frontend.ui.tugas.*
+import com.example.arsisi_frontend.ui.tugas.TugasViewModel
+import com.example.arsisi_frontend.ui.tugas.TugasListScreen
+import com.example.arsisi_frontend.ui.tugas.TugasFormScreen
+import com.example.arsisi_frontend.ui.tugas.TugasDetailScreen
+import com.example.arsisi_frontend.ui.tugas.PublikTugasMatkulScreen
 import com.example.arsisi_frontend.utils.PreferencesManager
 
 object Route {
@@ -42,14 +48,23 @@ fun AppNavGraph(
         val authInterceptor = AuthInterceptor(preferencesManager)
         val apiService = ApiClient.createService(authInterceptor, ApiService::class.java)
 
-        val tugasRepo = TugasRepository(apiService)
-        val matkulRepo = MataKuliahRepository(apiService)
+        // ✅ Ambil Database Instance
+        val database = AppDatabase.getDatabase(context.applicationContext)
+
+        // ✅ Ambil TugasDao dan MataKuliahDao
+        val tugasDao = database.tugasDao()
+        val mataKuliahDao = database.mataKuliahDao()  // ✅ TAMBAH INI
+
+        // ✅ Repository dengan Room Database
+        val tugasRepo = TugasRepository(apiService, tugasDao)
+        val matkulRepo = MataKuliahRepository(apiService, mataKuliahDao)  // ✅ TAMBAH DAO
 
         object {
-            val tugasFactory = TugasViewModelFactory(tugasRepo)
-            val formFactory = TugasFormViewModelFactory(tugasRepo, matkulRepo)
-            val tugasRepoInstance = tugasRepo
-            val matkulRepoInstance = matkulRepo
+            val tugasViewModelFactory = TugasViewModel.provideFactory(
+                application = context.applicationContext as Application,
+                tugasRepository = tugasRepo,
+                matakuliahRepository = matkulRepo
+            )
         }
     }
 
@@ -61,7 +76,7 @@ fun AppNavGraph(
         // ===== LIST TUGAS (TAB TUGAS SAYA & EKSPLORASI) =====
         composable(Route.LIST_TUGAS) { entry ->
             val tugasViewModel: TugasViewModel = viewModel(
-                factory = appDependencies.tugasFactory
+                factory = appDependencies.tugasViewModelFactory
             )
 
             val shouldRefresh by entry.savedStateHandle
@@ -80,14 +95,13 @@ fun AppNavGraph(
                 onNavigateToForm = {
                     navController.navigate(Route.FORM_TUGAS)
                 },
-                onViewDetails = { tugasId ->
+                onViewDetails = { tugasId: Int ->
                     navController.navigate("detail_tugas/$tugasId")
                 },
-                onEditTask = { tugas ->
-                    navController.navigate("edit_tugas/${tugas.tugasId}")
+                onEditTask = { tugasId: Int ->
+                    navController.navigate("edit_tugas/$tugasId")
                 },
-                onOpenEksplorasiMatkul = { item ->
-                    val matkulId = item.matakuliahId ?: -1
+                onOpenEksplorasiMatkul = { matkulId: Int ->
                     navController.navigate("eksplorasi_list_tugas/$matkulId")
                 }
             )
@@ -95,11 +109,13 @@ fun AppNavGraph(
 
         // ===== FORM TUGAS (TAMBAH) =====
         composable(Route.FORM_TUGAS) {
-            val formViewModel: TugasFormViewModel =
-                viewModel(factory = appDependencies.formFactory)
+            val tugasViewModel: TugasViewModel = viewModel(
+                factory = appDependencies.tugasViewModelFactory
+            )
 
             TugasFormScreen(
-                viewModel = formViewModel,
+                tugasId = null,
+                viewModel = tugasViewModel,
                 onNavigateBack = { navController.popBackStack() },
                 onSuccessSubmit = {
                     val listEntry = navController.getBackStackEntry(Route.LIST_TUGAS)
@@ -116,15 +132,18 @@ fun AppNavGraph(
         ) { backStackEntry ->
             val tugasId = backStackEntry.arguments?.getInt("tugasId") ?: 0
 
-            val detailFactory = remember(tugasId) {
-                TugasDetailViewModelFactory(appDependencies.tugasRepoInstance, tugasId)
-            }
-            val detailViewModel: TugasDetailViewModel = viewModel(factory = detailFactory)
+            val tugasViewModel: TugasViewModel = viewModel(
+                factory = appDependencies.tugasViewModelFactory
+            )
 
-            DetailTugasScreen(
+            LaunchedEffect(tugasId) {
+                tugasViewModel.loadTugasDetail(tugasId)
+            }
+
+            TugasDetailScreen(
                 tugasId = tugasId,
                 onNavigateBack = { navController.popBackStack() },
-                viewModel = detailViewModel
+                viewModel = tugasViewModel
             )
         }
 
@@ -135,24 +154,19 @@ fun AppNavGraph(
         ) { backStackEntry ->
             val tugasId = backStackEntry.arguments?.getInt("tugasId") ?: 0
 
-            val editFactory = remember(tugasId) {
-                TugasFormViewModelFactory(
-                    appDependencies.tugasRepoInstance,
-                    appDependencies.matkulRepoInstance,
-                    tugasId = tugasId
-                )
-            }
-            val editViewModel: TugasFormViewModel = viewModel(factory = editFactory)
+            val tugasViewModel: TugasViewModel = viewModel(
+                factory = appDependencies.tugasViewModelFactory
+            )
 
-            EditTugasScreen(
+            TugasFormScreen(
                 tugasId = tugasId,
+                viewModel = tugasViewModel,
                 onNavigateBack = { navController.popBackStack() },
-                onSuccessUpdate = {
+                onSuccessSubmit = {
                     val listEntry = navController.getBackStackEntry(Route.LIST_TUGAS)
                     listEntry.savedStateHandle[Route.KEY_SHOULD_REFRESH_LIST] = true
                     navController.popBackStack()
-                },
-                viewModel = editViewModel
+                }
             )
         }
 
@@ -163,18 +177,17 @@ fun AppNavGraph(
         ) { backStackEntry ->
             val matkulId = backStackEntry.arguments?.getInt("matkulId") ?: -1
 
-            val publikViewModel: TugasViewModel = viewModel(
-                factory = appDependencies.tugasFactory
+            val tugasViewModel: TugasViewModel = viewModel(
+                factory = appDependencies.tugasViewModelFactory
             )
 
             PublikTugasMatkulScreen(
                 matkulId = matkulId,
                 onNavigateBack = { navController.popBackStack() },
-                onViewDetails = { tugasId ->
-                    // buka halaman detail tugas seperti desain
+                onViewDetails = { tugasId: Int ->
                     navController.navigate("detail_tugas/$tugasId")
                 },
-                viewModel = publikViewModel
+                viewModel = tugasViewModel
             )
         }
     }

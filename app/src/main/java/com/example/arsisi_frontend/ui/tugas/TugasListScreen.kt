@@ -8,14 +8,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,62 +22,28 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.arsisi_frontend.data.model.Tugas
 import com.example.arsisi_frontend.ui.theme.PrimaryOrange
 import com.example.arsisi_frontend.ui.theme.TextDark
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.*
 
 val LightGrayBackground = Color(0xFFF5F5F5)
 val CardCorner = 12.dp
 
-// Format "2025-12-04T15:34:16.000Z" -> "04 Des 2025"
-fun formatTanggal(createdAt: String?): String {
-    if (createdAt.isNullOrBlank()) return "—"
-
-    return try {
-        val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
-        parser.timeZone = java.util.TimeZone.getTimeZone("UTC")
-        val date: Date = parser.parse(createdAt)
-
-        val formatter = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID"))
-        formatter.format(date)
-    } catch (e: Exception) {
-        "—"
-    }
-}
-
-// Untuk sort berdasarkan createdAt
-private fun createdAtToMillis(createdAt: String?): Long {
-    if (createdAt.isNullOrBlank()) return 0L
-    return try {
-        val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
-        parser.timeZone = java.util.TimeZone.getTimeZone("UTC")
-        parser.parse(createdAt)?.time ?: 0L
-    } catch (e: Exception) {
-        0L
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TugasListScreen(
     viewModel: TugasViewModel,
     onNavigateToForm: () -> Unit,
     onViewDetails: (Int) -> Unit,
-    onEditTask: (Tugas) -> Unit,
-    onOpenEksplorasiMatkul: (MataKuliahEksplorasi) -> Unit
+    onEditTask: (Int) -> Unit,
+    onOpenEksplorasiMatkul: (Int) -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val listUiState by viewModel.listUiState.collectAsStateWithLifecycle()
     val selectedType by viewModel.selectedType.collectAsStateWithLifecycle()
 
     var searchText by remember { mutableStateOf("") }
     var showFilter by remember { mutableStateOf(false) }
-
-    // state filter (hanya dipakai di tab Tugas Saya)
     var selectedTipe by remember { mutableStateOf("Semua") }
     var selectedUrut by remember { mutableStateOf("Terbaru") }
-
-    // pesan sukses hapus tugas
     var deleteSuccessMessage by remember { mutableStateOf<String?>(null) }
 
     Surface(
@@ -89,11 +51,8 @@ fun TugasListScreen(
         color = LightGrayBackground
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-
-            // KONTEN UTAMA
             Column(modifier = Modifier.fillMaxSize()) {
-
-                RepositoryTopBar(
+                TugasTopBar(
                     selectedType = selectedType,
                     onTypeSelected = viewModel::switchType
                 )
@@ -108,61 +67,54 @@ fun TugasListScreen(
                     SearchAndFilterBar(
                         value = searchText,
                         onValueChange = { searchText = it },
-                        showFilterButton = selectedType == TugasType.SAYA,
+                        showFilterButton = selectedType == TugasViewModel.TugasType.SAYA,
                         onFilterClick = { showFilter = true }
                     )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                when (val state = uiState) {
-                    TugasUiState.Loading -> LoadingState()
-                    is TugasUiState.Error -> ErrorState(state.message)
-                    is TugasUiState.Success -> {
-
-                        if (selectedType == TugasType.SAYA) {
-                            // ===== TAB TUGAS SAYA =====
-                            val base = state.tugasList.filter { tugas ->
+                when (val state = listUiState) {
+                    is TugasViewModel.ListUiState.Loading -> LoadingState()
+                    is TugasViewModel.ListUiState.Error -> ErrorState(state.message)
+                    is TugasViewModel.ListUiState.Success -> {
+                        if (selectedType == TugasViewModel.TugasType.SAYA) {
+                            val filtered = state.tugasList.filter { tugas ->
                                 searchText.isBlank() ||
-                                        tugas.judul.contains(searchText, true) ||
+                                        (tugas.judul ?:  "").contains(searchText, true) ||
                                         (tugas.namaMatakuliah?.contains(searchText, true) == true)
                             }
 
                             val byType = when (selectedTipe) {
-                                "Individu" -> base.filter { t ->
-                                    t.tipe_tugas?.equals("Individu", ignoreCase = true) == true
-                                }
-                                "Kelompok" -> base.filter { t ->
-                                    t.tipe_tugas?.equals("Kelompok", ignoreCase = true) == true
-                                }
-                                else -> base
+                                "Individu" -> filtered.filter { it.tipe_tugas?.equals("Individu", ignoreCase = true) == true }
+                                "Kelompok" -> filtered.filter { it.tipe_tugas?.equals("Kelompok", ignoreCase = true) == true }
+                                else -> filtered
                             }
 
-                            val sortedTasks = when (selectedUrut) {
-                                "Terbaru" -> byType.sortedByDescending { createdAtToMillis(it.createdAt) }
-                                "Terlama" -> byType.sortedBy { createdAtToMillis(it.createdAt) }
+                            val sorted = when (selectedUrut) {
+                                "Terbaru" -> byType.sortedByDescending { created_atToMillis(it.created_at) }
+                                "Terlama" -> byType.sortedBy { created_atToMillis(it.created_at) }
                                 else -> byType
                             }
 
                             TugasContent(
-                                tugasList = sortedTasks,
+                                tugasList = sorted,
                                 isPublic = false,
                                 onViewDetails = onViewDetails,
                                 onEditTask = onEditTask,
                                 onDeleteTask = { id ->
-                                    viewModel.deleteTugas(id)              // langsung ke ViewModel
+                                    viewModel.deleteTugas(id)
                                     deleteSuccessMessage = "Tugas berhasil dihapus"
                                 }
                             )
                         } else {
-                            // ===== TAB EKSPLORASI =====
-                            val base = state.tugasList.filter { tugas ->
+                            val filtered = state.tugasList.filter { tugas ->
                                 searchText.isBlank() ||
                                         (tugas.namaMatakuliah?.contains(searchText, true) == true) ||
                                         (tugas.kodeMatakuliah?.contains(searchText, true) == true)
                             }
 
-                            val eksplorasiList = viewModel.getEksplorasiPerMatkul(base)
+                            val eksplorasiList = viewModel.getEksplorasiPerMatkul(filtered)
                             EksplorasiMatkulContent(
                                 list = eksplorasiList,
                                 onItemClick = onOpenEksplorasiMatkul
@@ -172,8 +124,7 @@ fun TugasListScreen(
                 }
             }
 
-            // FAB pojok kanan bawah
-            if (selectedType == TugasType.SAYA) {
+            if (selectedType == TugasViewModel.TugasType.SAYA) {
                 FloatingActionButton(
                     onClick = onNavigateToForm,
                     containerColor = PrimaryOrange,
@@ -189,7 +140,7 @@ fun TugasListScreen(
                 }
             }
 
-            if (showFilter && selectedType == TugasType.SAYA) {
+            if (showFilter && selectedType == TugasViewModel.TugasType.SAYA) {
                 FilterBottomSheet(
                     currentTipe = selectedTipe,
                     currentUrut = selectedUrut,
@@ -201,7 +152,6 @@ fun TugasListScreen(
                 )
             }
 
-            // Popup pesan sukses hapus
             if (deleteSuccessMessage != null) {
                 DeleteSuccessPopup(
                     message = deleteSuccessMessage!!,
@@ -213,9 +163,9 @@ fun TugasListScreen(
 }
 
 @Composable
-fun RepositoryTopBar(
-    selectedType: TugasType,
-    onTypeSelected: (TugasType) -> Unit
+fun TugasTopBar(
+    selectedType: TugasViewModel.TugasType,
+    onTypeSelected: (TugasViewModel.TugasType) -> Unit
 ) {
     Surface(
         color = PrimaryOrange,
@@ -246,15 +196,15 @@ fun RepositoryTopBar(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 SegmentedButton(
-                    isSelected = selectedType == TugasType.SAYA,
+                    isSelected = selectedType == TugasViewModel.TugasType.SAYA,
                     label = "Tugas Saya",
-                    onClick = { onTypeSelected(TugasType.SAYA) },
+                    onClick = { onTypeSelected(TugasViewModel.TugasType.SAYA) },
                     modifier = Modifier.weight(1f)
                 )
                 SegmentedButton(
-                    isSelected = selectedType == TugasType.PUBLIK,
+                    isSelected = selectedType == TugasViewModel.TugasType.PUBLIK,
                     label = "Eksplorasi",
-                    onClick = { onTypeSelected(TugasType.PUBLIK) },
+                    onClick = { onTypeSelected(TugasViewModel.TugasType.PUBLIK) },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -267,7 +217,7 @@ fun TugasContent(
     tugasList: List<Tugas>,
     isPublic: Boolean,
     onViewDetails: (Int) -> Unit,
-    onEditTask: (Tugas) -> Unit,
+    onEditTask: (Int) -> Unit,
     onDeleteTask: (Int) -> Unit
 ) {
     if (tugasList.isEmpty()) {
@@ -281,23 +231,22 @@ fun TugasContent(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(tugasList) { tugas ->
+        items(tugasList, key = { it.tugasId ?: 0 }) { tugas ->
             TugasCard(
                 tugas = tugas,
                 isPublic = isPublic,
-                onClick = { onViewDetails(tugas.tugasId) },
-                onEditClick = onEditTask,
+                onClick = { onViewDetails(tugas.tugasId ?: 0) },
+                onEditClick = { onEditTask(tugas.tugasId ?: 0) },
                 onDeleteClick = onDeleteTask
             )
         }
     }
 }
 
-/** LIST EKSPLORASI PER MATA KULIAH **/
 @Composable
 fun EksplorasiMatkulContent(
-    list: List<MataKuliahEksplorasi>,
-    onItemClick: (MataKuliahEksplorasi) -> Unit
+    list: List<TugasViewModel.MataKuliahEksplorasi>,
+    onItemClick: (Int) -> Unit
 ) {
     if (list.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -313,7 +262,7 @@ fun EksplorasiMatkulContent(
         items(list) { item ->
             EksplorasiMatkulCard(
                 item = item,
-                onClick = { onItemClick(item) }
+                onClick = { onItemClick(item.matakuliahId ?: 0) }
             )
         }
     }
@@ -321,7 +270,7 @@ fun EksplorasiMatkulContent(
 
 @Composable
 fun EksplorasiMatkulCard(
-    item: MataKuliahEksplorasi,
+    item: TugasViewModel.MataKuliahEksplorasi,
     onClick: () -> Unit
 ) {
     Card(
@@ -332,8 +281,7 @@ fun EksplorasiMatkulCard(
             .clickable { onClick() }
     ) {
         Row(
-            modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
@@ -351,9 +299,7 @@ fun EksplorasiMatkulCard(
                 )
             }
 
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = item.jumlahTugas.toString(),
                     style = MaterialTheme.typography.titleMedium,
@@ -375,7 +321,7 @@ fun TugasCard(
     tugas: Tugas,
     isPublic: Boolean,
     onClick: () -> Unit,
-    onEditClick: (Tugas) -> Unit,
+    onEditClick: (Int) -> Unit,
     onDeleteClick: (Int) -> Unit
 ) {
     var showActionDialog by remember { mutableStateOf(false) }
@@ -394,7 +340,7 @@ fun TugasCard(
         ) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    text = tugas.judul,
+                    text = tugas.judul ?: "",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = TextDark
@@ -436,7 +382,7 @@ fun TugasCard(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text(tugas.visibility, color = Color.Gray)
+                    Text(tugas.visibility ?: "Private", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
 
                     Spacer(Modifier.width(16.dp))
 
@@ -447,7 +393,7 @@ fun TugasCard(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text(formatTanggal(tugas.createdAt), color = Color.Gray)
+                    Text(formatTanggal(tugas.created_at), color = Color.Gray, style = MaterialTheme.typography.bodySmall)
                 }
             }
 
@@ -471,7 +417,6 @@ fun TugasCard(
         }
     }
 
-    // Dialog pertama: Edit / Hapus
     if (showActionDialog && !isPublic) {
         Dialog(onDismissRequest = { showActionDialog = false }) {
             Box(
@@ -482,19 +427,17 @@ fun TugasCard(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     elevation = CardDefaults.cardElevation(4.dp),
-                    modifier = Modifier
-                        .widthIn(min = 220.dp, max = 260.dp)
+                    modifier = Modifier.widthIn(min = 220.dp, max = 260.dp)
                 ) {
                     Box {
                         Column(
-                            modifier = Modifier
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Button(
                                 onClick = {
                                     showActionDialog = false
-                                    onEditClick(tugas)
+                                    onEditClick(tugas.tugasId ?: 0)
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -510,7 +453,6 @@ fun TugasCard(
 
                             OutlinedButton(
                                 onClick = {
-                                    // tutup menu, buka dialog verifikasi hapus
                                     showActionDialog = false
                                     showConfirmDelete = true
                                 },
@@ -540,17 +482,259 @@ fun TugasCard(
         }
     }
 
-    // Dialog kedua: verifikasi hapus
     if (showConfirmDelete && !isPublic) {
         DeleteConfirmDialog(
-            title = "Hapus Tugas ?",
-            message = "Anda yakin ingin menghapus tugas \"${tugas.judul}\"?",
+            title = "Hapus Tugas?",
+            message = "Anda yakin ingin menghapus tugas \"${tugas.judul ?:  "tugas ini"}\"?",
             onCancel = { showConfirmDelete = false },
             onConfirm = {
                 showConfirmDelete = false
-                onDeleteClick(tugas.tugasId)
+                onDeleteClick(tugas.tugasId ?: 0)
             }
         )
+    }
+}
+
+@Composable
+fun PublikTugasMatkulScreen(
+    matkulId: Int,
+    onNavigateBack: () -> Unit,
+    onViewDetails: (Int) -> Unit,
+    viewModel: TugasViewModel
+) {
+    LaunchedEffect(matkulId) {
+        viewModel.switchType(TugasViewModel.TugasType.PUBLIK)
+    }
+
+    val listUiState = viewModel.listUiState.collectAsStateWithLifecycle().value
+
+    Scaffold(
+        containerColor = Color(0xFFF2F2F2)
+    ) { paddingValues ->
+        when (val state = listUiState) {
+            is TugasViewModel.ListUiState.Loading -> Box(
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = PrimaryOrange)
+            }
+
+            is TugasViewModel.ListUiState.Error -> Box(
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(state.message, color = Color.Red)
+            }
+
+            is TugasViewModel.ListUiState.Success -> {
+                val listForMatkul = state.tugasList.filter { it.matakuliah_id == matkulId }
+
+                val sortState = remember { mutableStateOf("Terbaru") }
+                val sortOption = sortState.value
+
+                val sortedList = when (sortOption) {
+                    "Terbaru" -> listForMatkul.sortedByDescending { created_atToMillis(it.created_at) }
+                    "Terlama" -> listForMatkul.sortedBy { created_atToMillis(it.created_at) }
+                    else -> listForMatkul
+                }
+
+                val namaMatkul = sortedList.firstOrNull()?.namaMatakuliah ?: "Mata Kuliah"
+                val jumlahTugas = sortedList.size
+
+                Column(
+                    modifier = Modifier
+                        .padding(paddingValues)
+                        .fillMaxSize()
+                ) {
+                    Surface(
+                        color = PrimaryOrange,
+                        modifier = Modifier.fillMaxWidth(),
+                        shadowElevation = 2.dp
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = onNavigateBack) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Kembali",
+                                    tint = Color.White
+                                )
+                            }
+
+                            Spacer(Modifier.width(8.dp))
+
+                            Column {
+                                Text(
+                                    text = namaMatkul,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    text = "$jumlahTugas Tugas Tersedia",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.White.copy(alpha = 0.9f)
+                                )
+                            }
+                        }
+                    }
+
+                    if (sortedList.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "Belum ada tugas publik di mata kuliah ini.",
+                                color = Color.Gray
+                            )
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Daftar Tugas",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextDark
+                            )
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "Urutkan:",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.Gray
+                                )
+                                Spacer(Modifier.width(8.dp))
+
+                                FilterChip(
+                                    selected = sortOption == "Terbaru",
+                                    onClick = { sortState.value = "Terbaru" },
+                                    label = { Text("Terbaru") },
+                                    shape = RoundedCornerShape(50),
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = PrimaryOrange,
+                                        selectedLabelColor = Color.White
+                                    )
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                FilterChip(
+                                    selected = sortOption == "Terlama",
+                                    onClick = { sortState.value = "Terlama" },
+                                    label = { Text("Terlama") },
+                                    shape = RoundedCornerShape(50),
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = PrimaryOrange,
+                                        selectedLabelColor = Color.White
+                                    )
+                                )
+                            }
+                        }
+
+                        LazyColumn(
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            items(sortedList) { tugas ->
+                                PublikTugasItemCard(
+                                    tugas = tugas,
+                                    onClick = { onViewDetails(tugas.tugasId ?: 0) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PublikTugasItemCard(
+    tugas: Tugas,
+    onClick: () -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val inisial = tugas.namaUser
+                ?.trim()
+                ?.split(" ")
+                ?.take(2)
+                ?.joinToString("") { it.first().uppercase() }
+                ?: "AA"
+
+            Surface(
+                shape = RoundedCornerShape(99.dp),
+                color = PrimaryOrange,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = inisial,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(Modifier.width(12.dp))
+
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = tugas.judul ?:  "",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextDark
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = tugas.namaUser ?: "-",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+            }
+
+            Spacer(Modifier.width(8.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Filled.Schedule,
+                    contentDescription = null,
+                    tint = Color.Gray,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = formatTanggal(tugas.created_at),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+            }
+        }
     }
 }
 
@@ -566,12 +750,10 @@ fun DeleteConfirmDialog(
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(4.dp),
-            modifier = Modifier
-                .widthIn(min = 260.dp, max = 280.dp)
+            modifier = Modifier.widthIn(min = 260.dp, max = 280.dp)
         ) {
             Column(
-                modifier = Modifier
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -741,11 +923,8 @@ fun FilterBottomSheet(
                 .padding(horizontal = 16.dp)
         ) {
             Column(
-                modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-
-                // Header: judul + tombol X
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -765,7 +944,7 @@ fun FilterBottomSheet(
                 }
 
                 Spacer(Modifier.height(8.dp))
-                Divider()
+                HorizontalDivider()
                 Spacer(Modifier.height(12.dp))
 
                 var tipe by remember(currentTipe) { mutableStateOf(currentTipe) }
@@ -787,7 +966,6 @@ fun FilterBottomSheet(
 
                 Spacer(Modifier.height(20.dp))
 
-                // Area tombol bawah
                 Surface(
                     color = Color(0xFFF5F5F5),
                     tonalElevation = 0.dp,
@@ -869,7 +1047,7 @@ fun DeleteSuccessPopup(
     onFinished: () -> Unit
 ) {
     LaunchedEffect(Unit) {
-        delay(1500)   // tampil 1.5 detik lalu hilang
+        delay(1500)
         onFinished()
     }
 
@@ -901,5 +1079,30 @@ fun DeleteSuccessPopup(
                 )
             }
         }
+    }
+}
+
+fun formatTanggal(created_at: String?): String {
+    if (created_at.isNullOrBlank()) return "—"
+
+    return try {
+        val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+        parser.timeZone = TimeZone.getTimeZone("UTC")
+        val date = parser.parse(created_at) ?: return "—"
+        val formatter = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID"))
+        formatter.format(date)
+    } catch (e: Exception) {
+        "—"
+    }
+}
+
+private fun created_atToMillis(created_at: String?): Long {
+    if (created_at.isNullOrBlank()) return 0L
+    return try {
+        val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+        parser.timeZone = TimeZone.getTimeZone("UTC")
+        parser.parse(created_at)?.time ?: 0L
+    } catch (e: Exception) {
+        0L
     }
 }

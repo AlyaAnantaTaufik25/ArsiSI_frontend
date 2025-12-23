@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.devtools.ksp") version "2.0.20-1.0.25"
 }
 
 android {
@@ -43,32 +44,41 @@ dependencies {
     // === DEPENDENCIES YANG DIBUTUHKAN UNTUK COMPOSE & ARSITEKTUR KITA ===
 
     // 1. Core Kotlin & Compose
-    implementation(libs.androidx.core.ktx) // Sudah ada
-    implementation(libs.androidx.activity.compose) // Sudah ada
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.activity.compose)
 
     // 2. Compose UI & Material (Menggantikan XML/View)
-    implementation(platform(libs.androidx.compose.bom)) // Sudah ada
-    implementation(libs.androidx.ui) // Sudah ada
-    implementation(libs.androidx.ui.graphics) // Sudah ada
-    implementation(libs.androidx.ui.tooling.preview) // Sudah ada
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.ui.tooling.preview)
     implementation("androidx.compose.material:material-icons-extended")
-    implementation(libs.androidx.material3) // Sudah ada
-    debugImplementation(libs.androidx.ui.tooling) // Sudah ada
+    implementation(libs.androidx.material3)
+    debugImplementation(libs.androidx.ui.tooling)
 
     // 3. Navigation Compose (WAJIB untuk NavGraph dan rememberNavController)
     implementation("androidx.navigation:navigation-compose:2.7.5")
 
     // 4. Lifecycle & ViewModel Compose (WAJIB untuk ViewModel dan collectAsStateWithLifecycle)
-    implementation(libs.androidx.lifecycle.runtime.ktx) // Sudah ada
+    implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
 
     // 5. Coroutines (Wajib untuk Flow di Repository)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
     // 6. Retrofit dan OkHttp (Wajib untuk API Service)
-    implementation("com.squareup.retrofit2:retrofit:2.9.0") // Sudah ada
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0") // Sudah ada
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // 7. WorkManager
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+
+    // 8. Room Database (TAMBAHAN BARU)
+    val room_version = "2.6.1"
+    implementation("androidx.room:room-runtime:$room_version")
+    implementation("androidx.room:room-ktx:$room_version")
+    ksp("androidx.room:room-compiler:$room_version")
 
 
     // === Testing Dependencies ===

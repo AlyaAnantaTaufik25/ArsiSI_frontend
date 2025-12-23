@@ -23,11 +23,20 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TugasFormScreen(
-    viewModel: TugasFormViewModel,
+    tugasId: Int? = null,
+    viewModel: TugasViewModel,
     onNavigateBack: () -> Unit,
     onSuccessSubmit: () -> Unit
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.formState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(tugasId) {
+        if (tugasId != null) {
+            viewModel.loadTugasForEdit(tugasId)
+        } else {
+            viewModel.resetFormState()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -58,7 +67,7 @@ fun TugasFormScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Tambah Tugas Baru",
+                            text = if (tugasId == null) "Tambah Tugas Baru" else "Edit Tugas",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleMedium
@@ -74,8 +83,6 @@ fun TugasFormScreen(
                 .padding(paddingValues)
                 .fillMaxSize()
         ) {
-
-            // ========== FORM CONTENT ==========
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -282,7 +289,7 @@ fun TugasFormScreen(
                 }
 
                 Button(
-                    onClick = { viewModel.submitForm() },
+                    onClick = { viewModel.submitForm(tugasId) },
                     enabled = !state.isSaving &&
                             state.judul.isNotBlank() &&
                             state.linkTugas.isNotBlank(),
@@ -295,7 +302,7 @@ fun TugasFormScreen(
                         disabledContainerColor = PrimaryOrange.copy(alpha = 0.4f)
                     )
                 ) {
-                    Text("Simpan")
+                    Text(if (tugasId == null) "Simpan" else "Simpan Perubahan")
                 }
             }
 
@@ -304,7 +311,7 @@ fun TugasFormScreen(
                     message = state.successMessage ?: "Tugas Tersimpan",
                     onFinished = {
                         viewModel.onSuccessMessageShown()
-                        onSuccessSubmit()   // navigate ke "Tugas Saya"
+                        onSuccessSubmit()
                     }
                 )
             }
@@ -318,7 +325,7 @@ private fun TugasSuccessPopup(
     onFinished: () -> Unit
 ) {
     LaunchedEffect(Unit) {
-        delay(1500)   // 1.5 detik tampil
+        delay(1500)
         onFinished()
     }
 
