@@ -5,16 +5,17 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "akademik_documents")
 data class AkademikDocumentEntity(
-    @PrimaryKey
-    val id: String,
-    val title: String,
-    val category: String,
-    val description: String,
-    val date: String, // Tanggal pertama kali upload
-    val fileName: String,
-    val fileSize: String,
-    val fileUri: String,
-    val attachments: List<AttachmentData>, // Gunakan AttachmentData, bukan AttachmentEntity
-    val updatedAt: String? = null // Tanggal terakhir update (null jika belum pernah diupdate)
+    @PrimaryKey(autoGenerate = true)
+    val dokumen_id: Int = 0,           // Sesuai backend
+    val mahasiswa_id: Int,             // TAMBAH - dari modul login
+    val judul: String,                 // Sesuai backend
+    val kategori: String,              // Sesuai backend
+    val deskripsi: String,             // Sesuai backend
+    val tanggal: String,               // Sesuai backend
+    val file_name: String,             // Sesuai backend
+    val file_size: String,             // Sesuai backend
+    val file_path: String,             // Sesuai backend
+    val attachments: List<AttachmentData>, // List attachment
+    val created_at: String,            // TAMBAH - timestamp create
+    val updated_at: String? = null     // Sesuai backend
 )
-

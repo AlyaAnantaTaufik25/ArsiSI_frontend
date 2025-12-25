@@ -25,27 +25,64 @@ import com.example.arsisi_frontend.data.model.AkademikDocument
 import com.example.arsisi_frontend.ui.theme.CreamWhite
 import com.example.arsisi_frontend.ui.theme.GoldenYellow
 import com.example.arsisi_frontend.ui.theme.SoftOrange
+import java.text.SimpleDateFormat
+import java.util.Locale
+
+// Helper function untuk format tanggal
+private fun formatDate(dateString: String?): String {
+    if (dateString.isNullOrEmpty()) return ""
+    
+    return try {
+        // Parse ISO date (2025-12-24 or 2025-12-24T17:00:00.000Z)
+        val inputFormat = if (dateString.contains("T")) {
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+        } else {
+            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        }
+        inputFormat.timeZone = java.util.TimeZone.getTimeZone("UTC")
+        val date = inputFormat.parse(dateString.split(".")[0]) // Remove milliseconds
+        
+        // Format to user-friendly format
+        val outputFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+        outputFormat.timeZone = java.util.TimeZone.getTimeZone("UTC")
+        outputFormat.format(date ?: return dateString)
+    } catch (e: Exception) {
+        dateString // Return original if parsing fails
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AkademikListScreen(
     viewModel: AkademikViewModel,
     onAddClick: () -> Unit,
-    onItemClick: (String) -> Unit
+    onItemClick: (Int) -> Unit
 ) {
     val documents by viewModel.documents.collectAsStateWithLifecycle()
     
-    // 1. UPDATE: Menambahkan "Laporan" ke dalam list tab
     val tabs = listOf("Semua", "Administrasi", "Akademik", "Laporan", "Lainnya")
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedTab by remember { mutableIntStateOf(0) }
 
-    // Logic Filter
+    // Logic Filter and Sort (newest first)
     val filteredList = documents.filter { doc ->
-        val matchesSearch = doc.title.contains(searchQuery, ignoreCase = true)
-        val matchesTab = if (selectedTab == 0) true else doc.category.equals(tabs[selectedTab], ignoreCase = true)
+        val matchesSearch = doc.judul.contains(searchQuery, ignoreCase = true)
+        val matchesTab = if (selectedTab == 0) true else doc.kategori.equals(tabs[selectedTab], ignoreCase = true)
         matchesSearch && matchesTab
+    }.sortedByDescending { doc ->
+        // Parse date for proper sorting
+        try {
+            val format = if (doc.tanggal.contains("T")) {
+                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+            } else {
+                SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            }
+            format.timeZone = java.util.TimeZone.getTimeZone("UTC")
+            format.parse(doc.tanggal.split(".")[0])?.time ?: 0L
+        } catch (e: Exception) {
+            0L // If parsing fails, put at bottom
+        }
     }
 
     Scaffold(
@@ -73,7 +110,7 @@ fun AkademikListScreen(
                 .padding(horizontal = 16.dp)
         ) {
 
-            // --- Search Bar ---
+            // Search Bar
             Row(modifier = Modifier.padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                 TextField(
                     value = searchQuery,
@@ -94,24 +131,22 @@ fun AkademikListScreen(
                 )
             }
 
-            // --- Tabs Kategori (Scrollable) ---
-            // 2. UPDATE: Menggunakan Row dengan horizontalScroll agar muat banyak kategori
+            // Tabs Kategori (Scrollable)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 16.dp)
-                    .horizontalScroll(rememberScrollState()), // Agar bisa digeser ke samping
+                    .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 tabs.forEachIndexed { index, title ->
                     val selected = index == selectedTab
                     Box(
                         modifier = Modifier
-                            // Hapus .weight(1f) agar lebar menyesuaikan teks
                             .clip(RoundedCornerShape(20.dp))
                             .background(if (selected) SoftOrange else Color(0xFFEFEFEF))
                             .clickable { selectedTab = index }
-                            .padding(vertical = 10.dp, horizontal = 20.dp), // Padding kiri-kanan lebih besar
+                            .padding(vertical = 10.dp, horizontal = 20.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -131,7 +166,7 @@ fun AkademikListScreen(
                 modifier = Modifier.padding(top = 24.dp, bottom = 12.dp)
             )
 
-            // --- TAMPILAN KOSONG VS LIST ---
+            // Empty State vs List
             if (filteredList.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -169,7 +204,7 @@ fun AkademikListScreen(
                     contentPadding = PaddingValues(bottom = 80.dp)
                 ) {
                     items(filteredList) { doc ->
-                        DokumenItemCard(document = doc, onClick = { onItemClick(doc.id) })
+                        DokumenItemCard(document = doc, onClick = { onItemClick(doc.dokumen_id) })
                     }
                 }
             }
@@ -197,14 +232,20 @@ fun DokumenItemCard(document: AkademikDocument, onClick: () -> Unit) {
             Spacer(Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = document.title,
+                    text = document.judul,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = document.category, color = SoftOrange, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Text(text = " • ${document.date}", color = Color.Gray, fontSize = 11.sp)
+                    Text(text = document.kategori, color = SoftOrange, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(text = " • ${formatDate(document.tanggal)}", color = Color.Gray, fontSize = 11.sp)
+                    // Show attachment count if any
+                    if (document.attachments.isNotEmpty()) {
+                        Text(text = " • ", color = Color.Gray, fontSize = 11.sp)
+                        Icon(Icons.Default.AttachFile, null, tint = Color.Gray, modifier = Modifier.size(12.dp))
+                        Text(text = " ${document.attachments.size}", color = Color.Gray, fontSize = 11.sp)
+                    }
                 }
             }
             Icon(Icons.Filled.ChevronRight, "Detail", tint = Color.LightGray)

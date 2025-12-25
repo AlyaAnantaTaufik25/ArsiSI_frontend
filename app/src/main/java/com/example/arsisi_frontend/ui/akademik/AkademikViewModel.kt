@@ -38,6 +38,24 @@ class AkademikViewModel(
     // State untuk error
     private val _error = mutableStateOf<String?>(null)
     val error: State<String?> = _error
+    
+    // Sync documents from API on init
+    init {
+        syncDocuments()
+    }
+    
+    fun syncDocuments() {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                repository.syncDocuments()
+            } catch (e: Exception) {
+                _error.value = "Gagal sync: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
 
     init {
         // Load semua dokumen saat ViewModel dibuat
@@ -58,7 +76,7 @@ class AkademikViewModel(
         }
     }
     
-    fun loadDocumentById(id: String) {
+    fun loadDocumentById(id: Int) {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
@@ -73,8 +91,8 @@ class AkademikViewModel(
     }
 
     fun addDocument(
-        title: String, category: String, description: String,
-        fileName: String, fileSize: String, fileUri: String,
+        judul: String, kategori: String, deskripsi: String,
+        file_name: String, file_size: String, file_path: String,
         attachments: List<Attachment>
     ) {
         viewModelScope.launch {
@@ -82,19 +100,19 @@ class AkademikViewModel(
                 _isLoading.value = true
                 _error.value = null
                 
-                val newDoc = AkademikDocument(
-                    title = title, 
-                    category = category, 
-                    description = description, 
-                    date = getCurrentDate(), // Tanggal pertama kali upload
-                    fileName = fileName, 
-                    fileSize = fileSize, 
-                    fileUri = fileUri,
-                    attachments = attachments,
-                    updatedAt = null // Dokumen baru belum pernah diupdate
+                // Call API to create document with attachments
+                val result = repository.createDocument(
+                    judul = judul,
+                    kategori = kategori,
+                    deskripsi = deskripsi,
+                    tanggal = getCurrentDate(),
+                    fileUri = file_path,
+                    attachments = attachments
                 )
                 
-                repository.insertDocument(newDoc)
+                if (result.isFailure) {
+                    _error.value = "Gagal upload: ${result.exceptionOrNull()?.message}"
+                }
             } catch (e: Exception) {
                 _error.value = "Gagal menyimpan dokumen: ${e.message}"
             } finally {
@@ -104,8 +122,9 @@ class AkademikViewModel(
     }
 
     fun updateDocument(
-        id: String, title: String, category: String, description: String,
-        fileName: String, fileSize: String, fileUri: String,
+        id: Int, judul: String, kategori: String, deskripsi: String,
+        tanggal: String,  // Add tanggal parameter to preserve original date
+        file_name: String, file_size: String, file_path: String,
         attachments: List<Attachment>
     ) {
         viewModelScope.launch {
@@ -113,19 +132,18 @@ class AkademikViewModel(
                 _isLoading.value = true
                 _error.value = null
                 
-                val existingDoc = repository.getDocumentByIdSync(id)
-                if (existingDoc != null) {
-                    val updatedDoc = existingDoc.copy(
-                        title = title, 
-                        category = category, 
-                        description = description,
-                        fileName = fileName, 
-                        fileSize = fileSize, 
-                        fileUri = fileUri,
-                        attachments = attachments,
-                        updatedAt = getCurrentDate() // Set tanggal update saat edit
-                    )
-                    repository.updateDocument(updatedDoc)
+                // Call API to update document
+                val result = repository.updateDocument(
+                    id = id,
+                    judul = judul,
+                    kategori = kategori,
+                    deskripsi = deskripsi,
+                    tanggal = tanggal,  // Use original date, not current date
+                    fileUri = if (file_path.startsWith("content://")) file_path else null
+                )
+                
+                if (result.isFailure) {
+                    _error.value = "Gagal update: ${result.exceptionOrNull()?.message}"
                 }
             } catch (e: Exception) {
                 _error.value = "Gagal mengupdate dokumen: ${e.message}"
@@ -135,12 +153,18 @@ class AkademikViewModel(
         }
     }
 
-    fun deleteDocument(id: String) {
+    fun deleteDocument(id: Int) {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
                 _error.value = null
-                repository.deleteDocumentById(id)
+                
+                // Call API to delete document
+                val result = repository.deleteDocument(id)
+                
+                if (result.isFailure) {
+                    _error.value = "Gagal hapus: ${result.exceptionOrNull()?.message}"
+                }
             } catch (e: Exception) {
                 _error.value = "Gagal menghapus dokumen: ${e.message}"
             } finally {
@@ -149,8 +173,8 @@ class AkademikViewModel(
         }
     }
     
-    fun getDocumentById(id: String): AkademikDocument? {
-        return documents.value.find { it.id == id }
+    fun getDocumentById(id: Int): AkademikDocument? {
+        return documents.value.find { it.dokumen_id == id }
     }
     
     fun clearError() {
@@ -158,7 +182,12 @@ class AkademikViewModel(
     }
     
     private fun getCurrentDate(): String {
-        val sdf = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        return sdf.format(Date())
+    }
+    
+    private fun getCurrentDateTime(): String {
+        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         return sdf.format(Date())
     }
 }

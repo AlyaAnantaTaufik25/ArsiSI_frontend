@@ -9,24 +9,30 @@ import com.example.arsisi_frontend.data.local.AppDatabase
 import com.example.arsisi_frontend.data.repository.AkademikRepository
 import com.example.arsisi_frontend.navigation.NavGraph
 import com.example.arsisi_frontend.ui.theme.ArsiSI_frontendTheme
+import com.example.arsisi_frontend.utils.PreferencesManager
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
         try {
+            // Inisialisasi PreferencesManager
+            val preferencesManager = PreferencesManager(applicationContext)
+            
             // Inisialisasi Database dan Repository
             val database = AppDatabase.getDatabase(applicationContext)
-            val akademikRepository = AkademikRepository(database)
+            val akademikRepository = AkademikRepository(database, preferencesManager, applicationContext)
             
             setContent {
                 ArsiSI_frontendTheme {
                     val navController = rememberNavController()
                     
-                    // Pass repository ke NavGraph
+                    // Pass all dependencies to NavGraph
                     NavGraph(
                         navController = navController,
-                        akademikRepository = akademikRepository
+                        akademikRepository = akademikRepository,
+                        application = application,
+                        preferencesManager = preferencesManager
                     )
                 }
             }

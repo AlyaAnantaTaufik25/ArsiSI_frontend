@@ -3,6 +3,7 @@ package com.example.arsisi_frontend.ui.akademik
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -49,6 +50,37 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.InputStream
+import java.text.SimpleDateFormat
+import java.util.Locale
+
+// Helper function untuk format tanggal
+private fun formatDate(dateString: String?): String {
+    if (dateString.isNullOrEmpty()) return ""
+    
+    return try {
+        // Parse ISO date (2025-12-24 or 2025-12-24T17:00:00.000Z)
+        val inputFormat = if (dateString.contains("T")) {
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+        } else {
+            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).apply {
+                // Use UTC timezone to prevent date shifting
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }
+        }
+        val date = inputFormat.parse(dateString.split(".")[0]) // Remove milliseconds
+        
+        // Format to user-friendly format
+        val outputFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).apply {
+            // Use UTC timezone for date-only values
+            if (!dateString.contains("T")) {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }
+        }
+        outputFormat.format(date ?: return dateString)
+    } catch (e: Exception) {
+        dateString // Return original if parsing fails
+    }
+}
 
 // Warna Khusus UI
 private val LightRedBg = Color(0xFFFFEBEE)
@@ -58,7 +90,7 @@ private val LightGrayBg = Color(0xFFF9F9F9)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AkademikDetailScreen(
-    documentId: String,
+    documentId: Int,
     viewModel: AkademikViewModel,
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
@@ -117,6 +149,16 @@ fun AkademikDetailScreen(
         }
     }
 
+    fun getFileUrl(filePath: String): String {
+        // Jika sudah URL lengkap, return as is
+        if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
+            return filePath
+        }
+        // Jika path lokal dari backend (uploads/...), convert ke URL
+        val baseUrl = "http://10.0.2.2:5000"  // Untuk emulator
+        return "$baseUrl/$filePath"
+    }
+
     fun downloadFile(uriString: String, fileName: String) {
         if (uriString.isEmpty()) {
             Toast.makeText(context, "File sumber tidak ditemukan", Toast.LENGTH_SHORT).show()
@@ -127,14 +169,17 @@ fun AkademikDetailScreen(
         Toast.makeText(context, "Mengunduh...", Toast.LENGTH_SHORT).show()
 
         scope.launch {
-            val success = withContext(Dispatchers.IO) {
-                saveToDownloads(context, uriString, fileName)
+            // Convert file path to full URL
+            val fileUrl = getFileUrl(uriString)
+            
+            val downloadedUri = withContext(Dispatchers.IO) {
+                saveToDownloads(context, fileUrl, fileName)
             }
 
             isDownloading = false
-            if (success) {
-                // Tampilkan Notifikasi di Status Bar
-                showDownloadNotification(context, fileName)
+            if (downloadedUri != null) {
+                // Tampilkan Notifikasi di Status Bar dengan aksi buka file
+                showDownloadNotification(context, fileName, downloadedUri)
                 Toast.makeText(context, "Berhasil disimpan di folder Download", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(context, "Gagal menyimpan file", Toast.LENGTH_SHORT).show()
@@ -160,34 +205,34 @@ fun AkademikDetailScreen(
         Column(
             modifier = Modifier.padding(innerPadding).verticalScroll(rememberScrollState())
         ) {
-            HeaderImageSection(category = currentDoc.category)
+            HeaderImageSection(category = currentDoc.kategori)
 
             Column(
                 modifier = Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 MainInfoSection(
-                    title = currentDoc.title, 
-                    date = "Ditambahkan pada ${currentDoc.date}",
-                    updatedAt = currentDoc.updatedAt
+                    title = currentDoc.judul, 
+                    date = "Ditambahkan pada ${formatDate(currentDoc.tanggal)}",
+                    updatedAt = if (currentDoc.updated_at != null) "Diupdate pada ${formatDate(currentDoc.updated_at)}" else null
                 )
-                DescriptionSection(description = currentDoc.description)
+                DescriptionSection(description = currentDoc.deskripsi)
 
                 Column {
                     SectionTitle(icon = Icons.Default.Description, title = "File Utama")
                     Spacer(Modifier.height(8.dp))
                     FileItem(
-                        fileName = currentDoc.fileName,
-                        fileSize = currentDoc.fileSize,
+                        fileName = currentDoc.file_name,
+                        fileSize = currentDoc.file_size,
                         isMain = true,
-                        onClick = { openFile(currentDoc.fileUri) },
-                        onDownloadClick = { downloadFile(currentDoc.fileUri, currentDoc.fileName) }
+                        onClick = { openFile(currentDoc.file_path) },
+                        onDownloadClick = { downloadFile(currentDoc.file_path, currentDoc.file_name) }
                     )
                 }
 
                 DocumentActionButtons(
-                    onViewClick = { openFile(currentDoc.fileUri) },
-                    onDownloadClick = { downloadFile(currentDoc.fileUri, currentDoc.fileName) },
+                    onViewClick = { openFile(currentDoc.file_path) },
+                    onDownloadClick = { downloadFile(currentDoc.file_path, currentDoc.file_name) },
                     isDownloading = isDownloading
                 )
 
@@ -196,12 +241,12 @@ fun AkademikDetailScreen(
                         SectionTitle(icon = Icons.Default.AttachFile, title = "File Pendukung")
                         currentDoc.attachments.forEach { attachment ->
                             FileItem(
-                                fileName = if (attachment.description.isNotEmpty()) attachment.description else attachment.fileName,
-                                fileSize = attachment.fileSize,
+                                fileName = if (attachment.description.isNotEmpty()) attachment.description else attachment.file_name,
+                                fileSize = attachment.file_size,
                                 isMain = false,
-                                onClick = { openFile(attachment.fileUri) },
-                                onDownloadClick = { downloadFile(attachment.fileUri, attachment.fileName) },
-                                subtitle = if (attachment.description.isNotEmpty()) attachment.fileName else null
+                                onClick = { openFile(attachment.file_path) },
+                                onDownloadClick = { downloadFile(attachment.file_path, attachment.file_name) },
+                                subtitle = if (attachment.description.isNotEmpty()) attachment.file_name else null
                             )
                         }
                     }
@@ -213,7 +258,7 @@ fun AkademikDetailScreen(
     if (showDeleteDialog) {
         com.example.arsisi_frontend.ui.akademik.ConfirmationDialog(
             title = "Hapus Dokumen?",
-            message = "Yakin hapus '${currentDoc.title}'?",
+            message = "Yakin hapus '${currentDoc.judul}'?",
             confirmText = "HAPUS",
             isDeleteType = true,
             onDismiss = { showDeleteDialog = false },
@@ -228,47 +273,69 @@ fun AkademikDetailScreen(
 
 // ================= LOGIC DOWNLOAD & NOTIFIKASI =================
 
-private fun saveToDownloads(context: Context, sourceUriStr: String, fileName: String): Boolean {
+private fun saveToDownloads(context: Context, sourceUrl: String, fileName: String): Uri? {
     return try {
         val resolver = context.contentResolver
-        val sourceUri = Uri.parse(sourceUriStr)
+        
+        // Deteksi MIME type dari nama file
+        val mimeType = when (fileName.substringAfterLast('.', "").lowercase()) {
+            "jpg", "jpeg" -> "image/jpeg"
+            "png" -> "image/png"
+            "pdf" -> "application/pdf"
+            "doc" -> "application/msword"
+            "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            else -> "application/octet-stream"
+        }
 
         val contentValues = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-            put(MediaStore.MediaColumns.MIME_TYPE, resolver.getType(sourceUri) ?: "application/octet-stream")
+            put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
 
-            // PERBAIKAN 1: Cek versi Android sebelum pakai RELATIVE_PATH
-            // RELATIVE_PATH hanya ada di Android 10 (API 29) ke atas
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
             }
         }
 
-        // PERBAIKAN 2: Pilih lokasi penyimpanan berdasarkan versi Android
         val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // Untuk Android 10+ pakai folder Downloads khusus
             MediaStore.Downloads.EXTERNAL_CONTENT_URI
         } else {
-            // Untuk Android 9 ke bawah, pakai penyimpanan eksternal umum
             MediaStore.Files.getContentUri("external")
         }
 
-        val destinationUri = resolver.insert(collection, contentValues) ?: return false
+        val destinationUri = resolver.insert(collection, contentValues) ?: return null
 
-        resolver.openInputStream(sourceUri)?.use { input ->
-            resolver.openOutputStream(destinationUri)?.use { output ->
-                input.copyTo(output)
+        // Download dari URL HTTP
+        if (sourceUrl.startsWith("http://") || sourceUrl.startsWith("https://")) {
+            val client = okhttp3.OkHttpClient()
+            val request = okhttp3.Request.Builder().url(sourceUrl).build()
+            val response = client.newCall(request).execute()
+            
+            if (!response.isSuccessful) return null
+            
+            response.body?.byteStream()?.use { input ->
+                resolver.openOutputStream(destinationUri)?.use { output ->
+                    input.copyTo(output)
+                }
+            }
+        } else {
+            // Fallback untuk content:// URI lokal
+            val sourceUri = Uri.parse(sourceUrl)
+            resolver.openInputStream(sourceUri)?.use { input ->
+                resolver.openOutputStream(destinationUri)?.use { output ->
+                    input.copyTo(output)
+                }
             }
         }
-        true
+        
+        destinationUri
     } catch (e: Exception) {
         e.printStackTrace()
-        false
+        null
     }
 }
 
 // FUNGSI UNTUK MEMUNCULKAN NOTIFIKASI
-private fun showDownloadNotification(context: Context, fileName: String) {
+private fun showDownloadNotification(context: Context, fileName: String, fileUri: Uri) {
     val channelId = "download_channel"
     val notificationId = System.currentTimeMillis().toInt()
 
@@ -285,16 +352,31 @@ private fun showDownloadNotification(context: Context, fileName: String) {
         notificationManager.createNotificationChannel(channel)
     }
 
-    // 2. Build Notifikasi
-    // Pastikan icon 'android.R.drawable.stat_sys_download_done' ada atau ganti dengan icon app
+    // 2. Buat Intent untuk membuka file saat notifikasi di-tap
+    val openFileIntent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(fileUri, context.contentResolver.getType(fileUri))
+        flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+    }
+    
+    val pendingIntent = PendingIntent.getActivity(
+        context,
+        notificationId,
+        openFileIntent,
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+    )
+
+    // 3. Build Notifikasi dengan action
     val builder = NotificationCompat.Builder(context, channelId)
         .setSmallIcon(android.R.drawable.stat_sys_download_done)
         .setContentTitle("Unduhan Selesai")
         .setContentText("$fileName berhasil disimpan.")
+        .setStyle(NotificationCompat.BigTextStyle()
+            .bigText("$fileName berhasil disimpan.\n\nTap untuk membuka file."))
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
         .setAutoCancel(true)
+        .setContentIntent(pendingIntent) // Aksi saat notifikasi di-tap
 
-    // 3. Tampilkan (Cek Izin dulu untuk Android 13+)
+    // 4. Tampilkan (Cek Izin dulu untuk Android 13+)
     if (ActivityCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
         NotificationManagerCompat.from(context).notify(notificationId, builder.build())
     } else {

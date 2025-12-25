@@ -1,4 +1,4 @@
-package com.example.arsisi_frontend.ui.akademik
+﻿package com.example.arsisi_frontend.ui.akademik
 
 import android.Manifest
 import android.content.Context
@@ -42,13 +42,19 @@ import java.io.File
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AkademikFormScreen(
-    documentId: String? = null,
+    documentId: Int? = null,
     viewModel: AkademikViewModel,
     onBackClick: () -> Unit,
     onSuccess: () -> Unit
 ) {
     val context = LocalContext.current
     val isEditMode = documentId != null
+    
+    // State untuk error & loading (HARUS SEBELUM LaunchedEffect)
+    var titleError by remember { mutableStateOf("") }
+    var fileError by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var shouldNavigate by remember { mutableStateOf(false) }
     
     // Load document jika edit mode
     LaunchedEffect(documentId) {
@@ -57,21 +63,34 @@ fun AkademikFormScreen(
         }
     }
     
+    // Observe error dan loading state dari ViewModel
+    val vmError by viewModel.error
+    val vmIsLoading by viewModel.isLoading
+    
+    // Auto navigate setelah berhasil save
+    LaunchedEffect(vmIsLoading, vmError, shouldNavigate) {
+        if (shouldNavigate && !vmIsLoading) {
+            if (vmError == null) {
+                // Berhasil save
+                onSuccess()
+            }
+            // Reset flags
+            isLoading = false
+            shouldNavigate = false
+        }
+    }
+    
     val existingDoc = if (isEditMode) {
         viewModel.currentDocument.value ?: viewModel.getDocumentById(documentId!!)
     } else null
 
-    var title by remember { mutableStateOf(existingDoc?.title ?: "") }
-    var description by remember { mutableStateOf(existingDoc?.description ?: "") }
-    var selectedFileName by remember { mutableStateOf(existingDoc?.fileName ?: "") }
-    var selectedFileSize by remember { mutableStateOf(existingDoc?.fileSize ?: "") }
-    var selectedFileUri by remember { mutableStateOf(existingDoc?.fileUri ?: "") }
+    var title by remember { mutableStateOf(existingDoc?.judul ?: "") }
+    var description by remember { mutableStateOf(existingDoc?.deskripsi ?: "") }
+    var selectedFileName by remember { mutableStateOf(existingDoc?.file_name ?: "") }
+    var selectedFileSize by remember { mutableStateOf(existingDoc?.file_size ?: "") }
+    var selectedFileUri by remember { mutableStateOf(existingDoc?.file_path ?: "") }
     var hasFile by remember { mutableStateOf(isEditMode || selectedFileName.isNotEmpty()) }
-    
-    // State untuk error & loading
-    var titleError by remember { mutableStateOf("") }
-    var fileError by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
+
 
     // === STATE LAMPIRAN ===
     val attachmentList = remember {
@@ -174,7 +193,7 @@ fun AkademikFormScreen(
 
     val categories = listOf("Administrasi", "Akademik", "Laporan", "Lainnya")
     var selectedCategory by remember {
-        mutableStateOf(if (isEditMode && existingDoc != null) categories.indexOf(existingDoc.category).coerceAtLeast(0) else 0)
+        mutableStateOf(if (isEditMode && existingDoc != null) categories.indexOf(existingDoc.kategori).coerceAtLeast(0) else 0)
     }
 
     // Fungsi validasi
@@ -293,8 +312,8 @@ fun AkademikFormScreen(
             // Render List Lampiran
             attachmentList.forEachIndexed { index, attachment ->
                 AttachmentCard(
-                    fileName = attachment.fileName,
-                    fileSize = attachment.fileSize,
+                    file_name = attachment.file_name,
+                    file_size = attachment.file_size,
                     description = attachment.description,
                     icon = Icons.Outlined.Description
                 ) {
@@ -340,6 +359,7 @@ fun AkademikFormScreen(
                         return@Button
                     }
                     isLoading = true
+                    viewModel.clearError() // Clear error sebelum submit
                     if (isEditMode) {
                         showSaveDialog = true
                     } else {
@@ -352,8 +372,7 @@ fun AkademikFormScreen(
                             selectedFileUri,
                             attachmentList.toList()
                         )
-                        isLoading = false
-                        onSuccess()
+                        shouldNavigate = true // Set flag untuk auto-navigate setelah loading selesai
                     }
                 },
                 modifier = Modifier
@@ -361,7 +380,7 @@ fun AkademikFormScreen(
                     .height(50.dp),
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = SoftOrange),
-                enabled = !isLoading
+                enabled = !isLoading && !vmIsLoading
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
@@ -377,6 +396,35 @@ fun AkademikFormScreen(
                 }
             }
             Spacer(Modifier.height(16.dp))
+            
+            // Tampilkan error dari ViewModel
+            if (vmError != null) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Error,
+                            contentDescription = null,
+                            tint = Color.Red,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            vmError!!,
+                            color = Color.Red,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+            }
+            
             if (isEditMode) {
                 TextButton(onClick = { showDeleteDocDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("Hapus Dokumen", color = Color(0xFFEF5350), fontWeight = FontWeight.SemiBold, fontSize = 14.sp) }
             }
@@ -400,6 +448,7 @@ fun AkademikFormScreen(
                 title,
                 categories[selectedCategory],
                 description,
+                existingDoc?.tanggal ?: "",  // Preserve original date
                 selectedFileName,
                 selectedFileSize,
                 selectedFileUri,
@@ -407,7 +456,7 @@ fun AkademikFormScreen(
             )
             showSaveDialog = false
             isLoading = false
-            onSuccess()
+            shouldNavigate = true  // Trigger auto-navigate after update completes
         }
         if (showReplaceFileDialog) {
             ConfirmationDialog(
@@ -600,9 +649,9 @@ fun AkademikFormScreen(
                             val (fileName, fileSize, fileUri) = pendingAttachmentFile!!
                             attachmentList.add(
                                 Attachment(
-                                    fileName = fileName,
-                                    fileSize = fileSize,
-                                    fileUri = fileUri,
+                                    file_name = fileName,
+                                    file_size = fileSize,
+                                    file_path = fileUri,
                                     description = attachmentName.trim()
                                 )
                             )
@@ -693,9 +742,7 @@ fun FileCardItem(fileName: String, fileSize: String, onActionClick: () -> Unit) 
 }
 
 @Composable
-fun AttachmentCard(
-    fileName: String, 
-    fileSize: String, 
+fun AttachmentCard(    file_name: String,    file_size: String, 
     description: String,
     icon: ImageVector, 
     onDelete: () -> Unit
@@ -712,20 +759,20 @@ fun AttachmentCard(
         Column(modifier = Modifier.weight(1f)) {
             // Tampilkan description jika ada, jika tidak tampilkan fileName
             Text(
-                text = if (description.isNotEmpty()) description else fileName,
+                text = if (description.isNotEmpty()) description else file_name,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium
             )
             if (description.isNotEmpty()) {
                 Text(
-                    text = fileName,
+                    text = file_name,
                     fontSize = 11.sp,
                     color = Color.Gray,
                     fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
                 )
             }
             Text(
-                text = fileSize,
+                text = file_size,
                 fontSize = 10.sp,
                 color = Color.Gray
             )
@@ -747,3 +794,4 @@ fun ConfirmationDialog(title: String, message: String, confirmText: String, isDe
 }
 
 fun Modifier.dashedBorder(width: Dp, color: Color, cornerRadius: Dp) = drawBehind { drawRoundRect(color = color, style = Stroke(width = width.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)), cornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerRadius.toPx())) }
+

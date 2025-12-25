@@ -11,7 +11,7 @@ import com.example.arsisi_frontend.data.local.entity.AkademikDocumentEntity
 
 @Database(
     entities = [AkademikDocumentEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(AttachmentListConverter::class)
