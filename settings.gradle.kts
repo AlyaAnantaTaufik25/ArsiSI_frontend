@@ -1,5 +1,4 @@
 pluginManagement {
-    // Tempat Gradle mencari Plugin (seperti Android Gradle Plugin)
     repositories {
         google()
         mavenCentral()
@@ -7,11 +6,8 @@ pluginManagement {
     }
 }
 
-// Konfigurasi ini memastikan semua modul (termasuk :app) menggunakan repository yang sama
-dependencyResolutionManagement {
 
-    // **Baris penyebab peringatan @Incubating telah dihapus.**
-    // Repositori yang didefinisikan di sini akan digunakan oleh semua proyek.
+dependencyResolutionManagement {
 
     repositories {
         google()

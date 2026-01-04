@@ -1,0 +1,773 @@
+﻿.\gradlew.bat : 
+WARNING: A 
+restricted method 
+in java.lang.System 
+has been called
+At line:1 char:1
++ .\gradlew.bat 
+compileDebugKotlin 
+--console=plain 
+2>&1 | Out-File 
+-Fil ...
++ ~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo  
+            : NotS  
+  pecified: (WARN   
+ ING: A rest...h    
+as been called:    
+String) [], Rem    
+oteException
+    + FullyQualifie 
+   dErrorId : Nati  
+  veCommandError
+ 
+WARNING: java.lang.S
+ystem::load has 
+been called by net.r
+ubygrapefruit.platfo
+rm.internal.NativeLi
+braryLoader in an 
+unnamed module (file
+:/C:/Users/fatia/.gr
+adle/wrapper/dists/g
+radle-8.13-bin/5xuhj
+0ry160q40clulazy9h7d
+/gradle-8.13/lib/nat
+ive-platform-0.22-mi
+lestone-28.jar)
+WARNING: Use --enabl
+e-native-access=ALL-
+UNNAMED to avoid a 
+warning for callers 
+in this module
+WARNING: Restricted 
+methods will be 
+blocked in a future 
+release unless 
+native access is 
+enabled
+
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:kspDebugKotlin UP-TO-DATE
+
+> Task :app:compileDebugKotlin FAILED
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/data
+/remote/ApiClient.kt
+:99:7 Redeclaration:
+class 
+AuthInterceptor : 
+Interceptor
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/data
+/remote/ApiClient.kt
+:108:40 Suspend 
+function 'suspend 
+fun getToken(): 
+String?' should be 
+called only from a 
+coroutine or 
+another suspend 
+function.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/data
+/remote/ApiConfig.kt
+:3:36 Unresolved 
+reference 
+'BuildConfig'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/data
+/remote/ApiConfig.kt
+:17:25 Unresolved 
+reference 
+'BuildConfig'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/data
+/remote/ApiService.k
+t:17:41 Overload 
+resolution 
+ambiguity between 
+candidates:
+data class 
+RegisterRequest : 
+Any
+data class 
+RegisterRequest : 
+Any
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/data
+/remote/ApiService.k
+t:20:38 Overload 
+resolution 
+ambiguity between 
+candidates:
+data class 
+LoginRequest : Any
+data class 
+LoginRequest : Any
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/data
+/remote/ApiService.k
+t:117:8 Overload 
+resolution 
+ambiguity between 
+candidates:
+data class 
+BaseResponse : Any
+data class 
+BaseResponse : Any
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/data
+/remote/ApiService.k
+t:120:53 Overload 
+resolution 
+ambiguity between 
+candidates:
+data class 
+BaseResponse : Any
+data class 
+BaseResponse : Any
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/data
+/remote/ApiService.k
+t:135:66 Overload 
+resolution 
+ambiguity between 
+candidates:
+data class 
+BaseResponse : Any
+data class 
+BaseResponse : Any
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/data
+/remote/ApiService.k
+t:233:17 Overload 
+resolution 
+ambiguity between 
+candidates:
+data class 
+BaseResponse : Any
+data class 
+BaseResponse : Any
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/data
+/remote/AuthIntercep
+tor.kt:7:7 
+Redeclaration:
+class 
+AuthInterceptor : 
+Interceptor
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/data
+/remote/AuthIntercep
+tor.kt:14:21 
+Unresolved 
+reference 
+'prefsManager'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/data
+/repository/Akademik
+Repository.kt:126:46
+ Argument type 
+mismatch: actual 
+type is 
+'kotlin.String?', 
+but 'kotlin.String' 
+was expected.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/data
+/repository/Akademik
+Repository.kt:220:25
+ Unresolved 
+reference 'success'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/data
+/repository/Akademik
+Repository.kt:242:50
+ Unresolved 
+reference 'message'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/data
+/repository/Akademik
+Repository.kt:261:25
+ Unresolved 
+reference 'success'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/data
+/repository/Akademik
+Repository.kt:265:50
+ Unresolved 
+reference 'message'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/data
+/repository/Akademik
+Repository.kt:311:30
+ Argument type 
+mismatch: actual 
+type is 
+'kotlin.String?', 
+but 'kotlin.String' 
+was expected.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/data
+/repository/Prestasi
+Repository.kt:150:38
+ Unresolved 
+reference 'message'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikDeta
+ilScreen.kt:47:45 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikDeta
+ilScreen.kt:48:45 
+Unresolved 
+reference 
+'WarmBrown'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikDeta
+ilScreen.kt:197:77 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikDeta
+ilScreen.kt:244:44 
+Argument type 
+mismatch: actual 
+type is 
+'kotlin.String?', 
+but 'kotlin.String' 
+was expected.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikDeta
+ilScreen.kt:244:70 
+Only safe (?.) or 
+non-null asserted 
+(!!.) calls are 
+allowed on a 
+nullable receiver 
+of type 
+'kotlin.String?'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikDeta
+ilScreen.kt:249:70 
+Only safe (?.) or 
+non-null asserted 
+(!!.) calls are 
+allowed on a 
+nullable receiver 
+of type 
+'kotlin.String?'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikDeta
+ilScreen.kt:507:25 
+Unresolved 
+reference 
+'WarmBrown'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikDeta
+ilScreen.kt:584:73 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikDeta
+ilScreen.kt:585:71 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikDeta
+ilScreen.kt:595:67 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikDeta
+ilScreen.kt:633:31 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikDeta
+ilScreen.kt:686:33 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikForm
+Screen.kt:39:44 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikForm
+Screen.kt:226:76 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikForm
+Screen.kt:244:41 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikForm
+Screen.kt:261:154 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikForm
+Screen.kt:275:41 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikForm
+Screen.kt:317:34 
+Argument type 
+mismatch: actual 
+type is 
+'kotlin.String?', 
+but 'kotlin.String' 
+was expected.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikForm
+Screen.kt:331:40 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikForm
+Screen.kt:342:31 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikForm
+Screen.kt:348:32 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikForm
+Screen.kt:382:70 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikForm
+Screen.kt:619:106 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikForm
+Screen.kt:733:113 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikForm
+Screen.kt:733:233 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikForm
+Screen.kt:740:240 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikForm
+Screen.kt:740:471 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikForm
+Screen.kt:793:862 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikList
+Screen.kt:25:45 
+Unresolved 
+reference 
+'CreamWhite'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikList
+Screen.kt:26:45 
+Unresolved 
+reference 
+'GoldenYellow'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikList
+Screen.kt:27:45 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikList
+Screen.kt:92:77 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikList
+Screen.kt:98:34 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikList
+Screen.kt:104:26 
+Unresolved 
+reference 
+'CreamWhite'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikList
+Screen.kt:147:55 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikList
+Screen.kt:227:33 
+Unresolved 
+reference 
+'GoldenYellow'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikList
+Screen.kt:230:61 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/a
+kademik/AkademikList
+Screen.kt:241:60 
+Unresolved 
+reference 
+'SoftOrange'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/d
+ashboard/DashboardVi
+ewModel.kt:85:38 
+Cannot infer type 
+for this parameter. 
+Please specify it 
+explicitly.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/d
+ashboard/DashboardVi
+ewModel.kt:85:44 
+Cannot infer type 
+for this parameter. 
+Please specify it 
+explicitly.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/d
+ashboard/DashboardVi
+ewModel.kt:85:57 
+Unresolved 
+reference 
+'getAgenda'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/d
+ashboard/DashboardVi
+ewModel.kt:95:63 
+Unresolved 
+reference 'body'.
+e: file:///D:/gabung
+an%20frontend/Fronte
+nd%20alya/app/src/ma
+in/java/com/example/
+arsisi_frontend/ui/d
+ashboard/DashboardVi
+ewModel.kt:103:58 
+Unresolved 
+reference 'status'.
+
+FAILURE: Build 
+failed with an 
+exception.
+
+* What went wrong:
+Execution failed 
+for task ':app:compi
+leDebugKotlin'.
+> A failure 
+occurred while 
+executing org.jetbra
+ins.kotlin.compilerR
+unner.GradleCompiler
+RunnerWithWorkers$Gr
+adleKotlinCompilerWo
+rkAction
+   > Compilation 
+error. See log for 
+more details
+
+* Try:
+> Run with 
+--stacktrace option 
+to get the stack 
+trace.
+> Run with --info 
+or --debug option 
+to get more log 
+output.
+> Run with --scan 
+to get full 
+insights.
+> Get more help at h
+ttps://help.gradle.o
+rg.
+
+BUILD FAILED in 3s
+15 actionable tasks: 1 executed, 14 up-to-date
